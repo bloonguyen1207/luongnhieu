@@ -1,15 +1,6 @@
-/**
- * Vietnam Salary Calculator - Core Logic
- * Based on 2025-2026 Vietnam Labor Law
- * 
- * Design Philosophy: Steampunk-Neo Minimalist
- * - Precision: All calculations follow official Vietnamese tax brackets
- * - Transparency: Breakdown shows every deduction component
- * - Bilingual: Supports English and Vietnamese labels
- */
-
 export interface SalaryInput {
-  grossSalary: number;
+  salary: number;
+  salaryType: 'gross' | 'net';
   region: 'I' | 'II' | 'III' | 'IV';
   dependents: number;
   year: 2025 | 2026;
@@ -18,16 +9,16 @@ export interface SalaryInput {
 export interface SalaryBreakdown {
   grossSalary: number;
   
-  // Insurance deductions (Employee)
+  // Insurance deductions (Employee) - calculated on gross salary
   socialInsurance: number;
   healthInsurance: number;
   unemploymentInsurance: number;
   totalInsurance: number;
   
-  // Income before tax
+  // Income after insurance (before deductions)
   incomeBeforeTax: number;
   
-  // Personal deductions
+  // Personal deductions (only for tax calculation)
   personalDeduction: number;
   dependentDeduction: number;
   totalDeductions: number;
@@ -58,6 +49,9 @@ export interface SalaryBreakdown {
   oldLawNetSalary?: number;
   taxSavings?: number;
   netPercentageChange?: number;
+  
+  // Year for display
+  year?: 2025 | 2026;
 }
 
 // Tax brackets 2026 (New 5-level system)
@@ -80,12 +74,6 @@ const TAX_BRACKETS_2025 = [
   { min: 80_000_001, max: Infinity, rate: 0.35 },
 ];
 
-// Minimum wage by region and year
-const MINIMUM_WAGE = {
-  2025: { I: 4_960_000, II: 4_410_000, III: 3_860_000, IV: 3_450_000 },
-  2026: { I: 5_310_000, II: 4_730_000, III: 4_140_000, IV: 3_700_000 },
-};
-
 // Insurance rates (Employee)
 const INSURANCE_RATES = {
   socialInsurance: 0.08,
@@ -93,16 +81,22 @@ const INSURANCE_RATES = {
   unemploymentInsurance: 0.01,
 };
 
-// Insurance rates (Employer)
 const EMPLOYER_INSURANCE_RATES = {
   socialInsurance: 0.145,
   healthInsurance: 0.03,
   unemploymentInsurance: 0.01,
 };
 
-// Deductions
-const PERSONAL_DEDUCTION = 11_000_000; // Monthly
-const DEPENDENT_DEDUCTION = 4_400_000; // Monthly per dependent
+// Deductions by year
+const PERSONAL_DEDUCTIONS = {
+  2025: 11_000_000,
+  2026: 15_500_000,
+};
+
+const DEPENDENT_DEDUCTIONS = {
+  2025: 4_400_000,
+  2026: 6_200_000,
+};
 
 /**
  * Calculate progressive tax based on brackets
@@ -137,37 +131,53 @@ function calculateProgressiveTax(
 
 /**
  * Main salary calculation function
+ * 
+ * Calculation order (correct per Vietnam law):
+ * 1. Start with gross salary
+ * 2. Calculate insurance on gross salary
+ * 3. Income after insurance (before deductions)
+ * 4. Apply personal + dependent deductions to calculate taxable income
+ * 5. Apply PIT brackets on taxable income
+ * 6. Net salary = Gross - Insurance - PIT
  */
 export function calculateSalary(input: SalaryInput): SalaryBreakdown {
-  const { grossSalary, region, dependents, year } = input;
+  const { salary, salaryType, region, dependents, year } = input;
 
-  // Insurance deductions (Employee)
+  // Get deduction amounts for the year
+  const personalDeduction = PERSONAL_DEDUCTIONS[year];
+  const dependentDeduction = DEPENDENT_DEDUCTIONS[year] * Math.max(0, dependents);
+  const totalDeductions = personalDeduction + dependentDeduction;
+
+  // Determine gross salary
+  let grossSalary = salary;
+  if (salaryType === 'net') {
+    // If user entered net salary, we need to calculate gross
+    // This requires iterative calculation
+    grossSalary = calculateGrossFromNet(salary, totalDeductions, year);
+  }
+
+  // Insurance deductions (Employee) - calculated on GROSS salary
   const socialInsurance = grossSalary * INSURANCE_RATES.socialInsurance;
   const healthInsurance = grossSalary * INSURANCE_RATES.healthInsurance;
   const unemploymentInsurance = grossSalary * INSURANCE_RATES.unemploymentInsurance;
   const totalInsurance = socialInsurance + healthInsurance + unemploymentInsurance;
 
-  // Income before tax
-  const incomeBeforeTax = grossSalary - totalInsurance;
+  // Income after insurance (before deductions)
+  const incomeAfterInsurance = grossSalary - totalInsurance;
 
-  // Personal deductions
-  const personalDeduction = PERSONAL_DEDUCTION;
-  const dependentDeduction = DEPENDENT_DEDUCTION * Math.max(0, dependents);
-  const totalDeductions = personalDeduction + dependentDeduction;
+  // Taxable income = Income after insurance - Personal/Dependent deductions
+  const taxableIncome = Math.max(0, incomeAfterInsurance - totalDeductions);
 
-  // Taxable income
-  const taxableIncome = Math.max(0, incomeBeforeTax - totalDeductions);
-
-  // PIT calculation (2026 new law)
+  // PIT calculation
   const { tax: pit, breakdown: pitBreakdown } = calculateProgressiveTax(
     taxableIncome,
     year === 2026 ? TAX_BRACKETS_2026 : TAX_BRACKETS_2025
   );
 
-  // Net salary
-  const netSalary = incomeBeforeTax - pit;
+  // Net salary (after all deductions, insurance, and tax)
+  const netSalary = incomeAfterInsurance - pit;
 
-  // Employer cost
+  // Employer cost (calculated on original gross salary)
   const employerSocialInsurance = grossSalary * EMPLOYER_INSURANCE_RATES.socialInsurance;
   const employerHealthInsurance = grossSalary * EMPLOYER_INSURANCE_RATES.healthInsurance;
   const employerUnemploymentInsurance = grossSalary * EMPLOYER_INSURANCE_RATES.unemploymentInsurance;
@@ -180,11 +190,11 @@ export function calculateSalary(input: SalaryInput): SalaryBreakdown {
   if (year === 2026) {
     const { tax: oldTax } = calculateProgressiveTax(taxableIncome, TAX_BRACKETS_2025);
     oldLawPIT = oldTax;
-    oldLawNetSalary = incomeBeforeTax - oldTax;
+    oldLawNetSalary = incomeAfterInsurance - oldTax;
   }
 
-  const taxSavings = oldLawPIT - pit;
-  const netPercentageChange = oldLawNetSalary > 0 ? ((netSalary - oldLawNetSalary) / oldLawNetSalary) * 100 : 0;
+  const taxSavings = year === 2026 ? (oldLawPIT - pit) : 0;
+  const netPercentageChange = year === 2026 && oldLawNetSalary > 0 ? ((netSalary - oldLawNetSalary) / oldLawNetSalary) * 100 : 0;
 
   return {
     grossSalary,
@@ -192,7 +202,7 @@ export function calculateSalary(input: SalaryInput): SalaryBreakdown {
     healthInsurance,
     unemploymentInsurance,
     totalInsurance,
-    incomeBeforeTax,
+    incomeBeforeTax: incomeAfterInsurance,
     personalDeduction,
     dependentDeduction,
     totalDeductions,
@@ -208,20 +218,60 @@ export function calculateSalary(input: SalaryInput): SalaryBreakdown {
     oldLawNetSalary,
     taxSavings,
     netPercentageChange,
+    year,
   };
+}
+
+/**
+ * Calculate gross salary from net salary using iterative approach
+ */
+function calculateGrossFromNet(
+  netSalary: number,
+  deductions: number,
+  year: 2025 | 2026
+): number {
+  // Initial estimate
+  let gross = netSalary / 0.85; // Rough estimate
+
+  // Iterative refinement
+  for (let i = 0; i < 10; i++) {
+    const socialInsurance = gross * INSURANCE_RATES.socialInsurance;
+    const healthInsurance = gross * INSURANCE_RATES.healthInsurance;
+    const unemploymentInsurance = gross * INSURANCE_RATES.unemploymentInsurance;
+    const totalInsurance = socialInsurance + healthInsurance + unemploymentInsurance;
+
+    const incomeAfterInsurance = gross - totalInsurance;
+    const taxableIncome = Math.max(0, incomeAfterInsurance - deductions);
+
+    const { tax: pit } = calculateProgressiveTax(
+      taxableIncome,
+      year === 2026 ? TAX_BRACKETS_2026 : TAX_BRACKETS_2025
+    );
+
+    const calculatedNet = incomeAfterInsurance - pit;
+
+    if (Math.abs(calculatedNet - netSalary) < 100) {
+      return gross;
+    }
+
+    // Adjust gross salary
+    gross = gross * (netSalary / (calculatedNet || 1));
+  }
+
+  return gross;
 }
 
 /**
  * Format currency for display
  */
-export function formatCurrency(value: number, locale: 'en' | 'vi' = 'en'): string {
-  if (locale === 'vi') {
+export function formatCurrency(amount: number, language: 'en' | 'vi'): string {
+  if (language === 'vi') {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(value);
+    }).format(amount);
   }
 
   return new Intl.NumberFormat('en-US', {
@@ -229,12 +279,5 @@ export function formatCurrency(value: number, locale: 'en' | 'vi' = 'en'): strin
     currency: 'VND',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
-}
-
-/**
- * Format percentage
- */
-export function formatPercentage(value: number, decimals: number = 1): string {
-  return `${value.toFixed(decimals)}%`;
+  }).format(amount);
 }

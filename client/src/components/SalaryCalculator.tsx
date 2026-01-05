@@ -24,22 +24,25 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 export function SalaryCalculator() {
   const { language } = useLanguage();
-  const [grossSalary, setGrossSalary] = useState<number>(10_000_000);
+  const [salary, setSalary] = useState<number>(10_000_000);
+  const [salaryType, setSalaryType] = useState<'gross' | 'net'>('gross');
   const [region, setRegion] = useState<'I' | 'II' | 'III' | 'IV'>('I');
   const [dependents, setDependents] = useState<number>(0);
   const [year, setYear] = useState<2025 | 2026>(2026);
 
   const result = useMemo<SalaryBreakdown>(() => {
     return calculateSalary({
-      grossSalary,
+      salary,
+      salaryType,
       region,
       dependents,
       year,
     });
-  }, [grossSalary, region, dependents, year]);
+  }, [salary, salaryType, region, dependents, year]);
 
   const handleReset = () => {
-    setGrossSalary(10_000_000);
+    setSalary(10_000_000);
+    setSalaryType('gross');
     setRegion('I');
     setDependents(0);
     setYear(2026);
@@ -54,25 +57,47 @@ export function SalaryCalculator() {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Gross Salary */}
+          {/* Salary Input */}
           <div className="space-y-2">
-            <Label htmlFor="grossSalary" className="text-sm font-medium">
-              {t('grossSalary', language)}
+            <Label htmlFor="salary" className="text-sm font-medium">
+              {salaryType === 'gross' ? t('grossSalary', language) : t('netSalary', language)}
             </Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
                 ₫
               </span>
               <Input
-                id="grossSalary"
+                id="salary"
                 type="number"
-                value={grossSalary}
-                onChange={(e) => setGrossSalary(Number(e.target.value))}
+                value={salary}
+                onChange={(e) => setSalary(Number(e.target.value))}
                 placeholder={t('grossSalaryPlaceholder', language)}
                 className="pl-6 font-mono text-base"
                 min="0"
                 step="100000"
               />
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => setSalaryType('gross')}
+                className={`text-xs px-3 py-1 rounded transition-colors ${
+                  salaryType === 'gross'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                {language === 'en' ? 'Gross' : 'Brutto'}
+              </button>
+              <button
+                onClick={() => setSalaryType('net')}
+                className={`text-xs px-3 py-1 rounded transition-colors ${
+                  salaryType === 'net'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                {language === 'en' ? 'Net' : 'Ròng'}
+              </button>
             </div>
           </div>
 
@@ -115,15 +140,15 @@ export function SalaryCalculator() {
           {/* Year */}
           <div className="space-y-2">
             <Label htmlFor="year" className="text-sm font-medium">
-              Tax Law Year
+              {t('taxLawYear', language)}
             </Label>
             <Select value={year.toString()} onValueChange={(value) => setYear(Number(value) as 2025 | 2026)}>
               <SelectTrigger id="year" className="font-mono">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="2025">2025 (7-bracket)</SelectItem>
-                <SelectItem value="2026">2026 (5-bracket)</SelectItem>
+                <SelectItem value="2025">{t('year2025', language)}</SelectItem>
+                <SelectItem value="2026">{t('year2026', language)}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -171,13 +196,13 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
       <Card className="p-8 bg-gradient-to-br from-accent/5 to-transparent border-2 border-accent">
         <div className="text-center">
           <p className="text-sm font-medium text-muted-foreground mb-2">
-            {t('netSalary', language)}
+            {t('netSalaryTakeHome', language)}
           </p>
           <p className="text-4xl font-mono font-bold text-accent">
             {formatCurrency(result.netSalary, language)}
           </p>
           <p className="text-xs text-muted-foreground mt-2">
-            {language === 'vi' ? 'Lương thực nhận hàng tháng' : 'Monthly take-home salary'}
+            {t('monthlyTakeHome', language)}
           </p>
         </div>
       </Card>
@@ -188,7 +213,7 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
           onClick={() => toggleSection('breakdown')}
           className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
         >
-          <h3 className="text-lg font-mono font-bold">{t('results', language)}</h3>
+          <h3 className="text-lg font-mono font-bold">{t('salaryBreakdown', language)}</h3>
           <span className="text-2xl text-muted-foreground">
             {expandedSections.has('breakdown') ? '−' : '+'}
           </span>
@@ -204,25 +229,46 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
             <div className="my-2 border-t border-border" />
 
             <ResultRow
-              label={t('socialInsurance', language)}
+              label={t('personalDeductionLabel', language)}
+              value={-result.personalDeduction}
+              language={language}
+              isDeduction
+            />
+            <ResultRow
+              label={t('dependentDeductionLabel', language)}
+              value={-result.dependentDeduction}
+              language={language}
+              isDeduction
+            />
+            <ResultRow
+              label={t('totalDeductionsLabel', language)}
+              value={-(result.personalDeduction + result.dependentDeduction)}
+              language={language}
+              isDeduction
+              isBold
+            />
+            <div className="my-2 border-t border-border" />
+
+            <ResultRow
+              label={t('socialInsuranceLabel', language)}
               value={-result.socialInsurance}
               language={language}
               isDeduction
             />
             <ResultRow
-              label={t('healthInsurance', language)}
+              label={t('healthInsuranceLabel', language)}
               value={-result.healthInsurance}
               language={language}
               isDeduction
             />
             <ResultRow
-              label={t('unemploymentInsurance', language)}
+              label={t('unemploymentInsuranceLabel', language)}
               value={-result.unemploymentInsurance}
               language={language}
               isDeduction
             />
             <ResultRow
-              label={t('totalInsurance', language)}
+              label={t('totalInsuranceLabel', language)}
               value={-result.totalInsurance}
               language={language}
               isDeduction
@@ -232,53 +278,25 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
             <div className="my-2 border-t border-border" />
 
             <ResultRow
-              label={t('incomeBeforeTax', language)}
-              value={result.incomeBeforeTax}
-              language={language}
-              isBold
-            />
-
-            <div className="my-2 border-t border-border" />
-
-            <ResultRow
-              label={t('personalDeduction', language)}
-              value={-result.personalDeduction}
-              language={language}
-              isDeduction
-              isSmall
-            />
-            <ResultRow
-              label={t('dependentDeduction', language)}
-              value={-result.dependentDeduction}
-              language={language}
-              isDeduction
-              isSmall
-            />
-            <ResultRow
-              label={t('taxableIncome', language)}
+              label={t('taxableIncomeLabel', language)}
               value={result.taxableIncome}
               language={language}
-              isBold
             />
-
-            <div className="my-2 border-t border-border" />
-
             <ResultRow
-              label={t('personalIncomeTax', language)}
+              label={t('personalIncomeTaxLabel', language)}
               value={-result.pit}
               language={language}
               isDeduction
               isBold
             />
 
-            <div className="my-3 border-t-2 border-accent" />
+            <div className="my-2 border-t border-border" />
 
             <ResultRow
-              label={t('netSalary', language)}
+              label={t('netSalaryTakeHome', language)}
               value={result.netSalary}
               language={language}
               isBold
-              isHighlight
             />
           </div>
         )}
@@ -290,7 +308,7 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
           onClick={() => toggleSection('employer')}
           className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
         >
-          <h3 className="text-lg font-mono font-bold">{t('employerCost', language)}</h3>
+          <h3 className="text-lg font-mono font-bold">{t('employerCostBreakdown', language)}</h3>
           <span className="text-2xl text-muted-foreground">
             {expandedSections.has('employer') ? '−' : '+'}
           </span>
@@ -303,146 +321,118 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
               value={result.grossSalary}
               language={language}
             />
-
             <div className="my-2 border-t border-border" />
 
             <ResultRow
-              label={t('employerSocialInsurance', language)}
+              label={t('employerSocialInsuranceLabel', language)}
               value={result.employerSocialInsurance}
               language={language}
             />
             <ResultRow
-              label={t('employerHealthInsurance', language)}
+              label={t('employerHealthInsuranceLabel', language)}
               value={result.employerHealthInsurance}
               language={language}
             />
             <ResultRow
-              label={t('employerUnemploymentInsurance', language)}
+              label={t('employerUnemploymentInsuranceLabel', language)}
               value={result.employerUnemploymentInsurance}
               language={language}
             />
+            <ResultRow
+              label={t('totalEmployerContributionLabel', language)}
+              value={result.employerSocialInsurance + result.employerHealthInsurance + result.employerUnemploymentInsurance}
+              language={language}
+              isBold
+            />
 
-            <div className="my-3 border-t-2 border-accent" />
+            <div className="my-2 border-t border-border" />
 
             <ResultRow
-              label={t('totalEmployerCost', language)}
+              label={t('totalEmployerCostLabel', language)}
               value={result.totalEmployerCost}
               language={language}
               isBold
-              isHighlight
             />
-
-            <p className="text-xs text-muted-foreground mt-4 pt-4 border-t border-border">
-              {t('employerNote', language)}
-            </p>
           </div>
         )}
       </Card>
 
       {/* Comparison Section */}
-      {result.oldLawPIT !== undefined && (
-        <Card className="p-6 border-l-4 border-l-accent">
+      {(result as any).year === 2026 && (
+        <Card className="p-6 border-l-4 border-l-primary">
           <button
             onClick={() => toggleSection('comparison')}
             className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
           >
-            <h3 className="text-lg font-mono font-bold">{t('comparisonTitle', language)}</h3>
+            <h3 className="text-lg font-mono font-bold">{t('taxLawComparison', language)}</h3>
             <span className="text-2xl text-muted-foreground">
               {expandedSections.has('comparison') ? '−' : '+'}
             </span>
           </button>
 
           {expandedSections.has('comparison') && (
-            <div className="space-y-4 pt-4 border-t border-border">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-secondary/50 rounded border border-border">
-                  <p className="text-xs text-muted-foreground mb-2">{t('oldLaw', language)}</p>
-                  <p className="text-2xl font-mono font-bold">
-                    {formatCurrency(result.oldLawPIT || 0, language)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">{t('oldLawPIT', language)}</p>
-                </div>
+            <div className="space-y-3 pt-4 border-t border-border">
+              <ResultRow
+                label={t('oldLawPIT', language)}
+                value={-(result.oldLawPIT ?? 0)}
+                language={language}
+                isDeduction
+              />
+              <ResultRow
+                label={t('personalIncomeTaxLabel', language)}
+                value={-result.pit}
+                language={language}
+                isDeduction
+              />
+              <ResultRow
+                label={t('taxSavingsLabel', language)}
+                value={result.taxSavings ?? 0}
+                language={language}
+                isBold
+              />
 
-                <div className="p-4 bg-accent/10 rounded border border-accent">
-                  <p className="text-xs text-muted-foreground mb-2">{t('newLaw', language)}</p>
-                  <p className="text-2xl font-mono font-bold text-accent">
-                    {formatCurrency(result.pit, language)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">{t('newLawPIT', language)}</p>
-                </div>
-              </div>
+              <div className="my-2 border-t border-border" />
 
-              {result.taxSavings !== undefined && result.taxSavings > 0 && (
-                <div className="p-4 bg-green-50 dark:bg-green-950 rounded border border-green-200 dark:border-green-800">
-                  <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                    {t('youSave', language)} {formatCurrency(result.taxSavings, language)} {t('perMonth', language)}
-                  </p>
-                </div>
-              )}
-
-              {result.netPercentageChange !== undefined && (
-                <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                    {t('netSalaryComparison', language)}: +{result.netPercentageChange.toFixed(2)}%
-                  </p>
-                </div>
-              )}
+              <ResultRow
+                label={t('oldLawNetSalaryLabel', language)}
+                value={result.oldLawNetSalary ?? 0}
+                language={language}
+              />
+              <ResultRow
+                label={t('netSalaryTakeHome', language)}
+                value={result.netSalary}
+                language={language}
+              />
+              <ResultRow
+                label={t('percentageIncreaseLabel', language)}
+                value={result.netPercentageChange ?? 0}
+                language={language}
+                isPercentage
+                isBold
+              />
             </div>
           )}
         </Card>
       )}
 
-      {/* Tax Breakdown Section */}
-      {result.pitBreakdown.length > 0 && (
-        <Card className="p-6 border-l-4 border-l-primary">
-          <button
-            onClick={() => toggleSection('taxBreakdown')}
-            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
-          >
-            <h3 className="text-lg font-mono font-bold">{t('taxBreakdown', language)}</h3>
-            <span className="text-2xl text-muted-foreground">
-              {expandedSections.has('taxBreakdown') ? '−' : '+'}
-            </span>
-          </button>
+      {/* Minimum Wage Info */}
+      <Card className="p-6 border-l-4 border-l-primary">
+        <button
+          onClick={() => toggleSection('minimumWage')}
+          className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+        >
+          <h3 className="text-lg font-mono font-bold">{t('minimumWageInfo', language)}</h3>
+          <span className="text-2xl text-muted-foreground">
+            {expandedSections.has('minimumWage') ? '−' : '+'}
+          </span>
+        </button>
 
-          {expandedSections.has('taxBreakdown') && (
-            <div className="overflow-x-auto pt-4 border-t border-border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 px-2 font-mono font-bold text-xs text-muted-foreground">
-                      {t('bracket', language)}
-                    </th>
-                    <th className="text-right py-2 px-2 font-mono font-bold text-xs text-muted-foreground">
-                      {t('incomeRange', language)}
-                    </th>
-                    <th className="text-right py-2 px-2 font-mono font-bold text-xs text-muted-foreground">
-                      {t('rate', language)}
-                    </th>
-                    <th className="text-right py-2 px-2 font-mono font-bold text-xs text-muted-foreground">
-                      {t('taxAmount', language)}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.pitBreakdown.map((row, idx) => (
-                    <tr key={idx} className="border-b border-border hover:bg-secondary/50">
-                      <td className="py-2 px-2 font-mono">{row.bracket}</td>
-                      <td className="text-right py-2 px-2 font-mono text-xs">
-                        {formatCurrency(row.income, language)}
-                      </td>
-                      <td className="text-right py-2 px-2 font-mono font-medium">{row.rate.toFixed(0)}%</td>
-                      <td className="text-right py-2 px-2 font-mono font-bold">
-                        {formatCurrency(row.tax, language)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      )}
+        {expandedSections.has('minimumWage') && (
+          <div className="space-y-4 pt-4 border-t border-border">
+            <MinimumWageTable language={language} year={(result as any).year || 2026} />
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
@@ -453,32 +443,58 @@ interface ResultRowProps {
   language: 'en' | 'vi';
   isDeduction?: boolean;
   isBold?: boolean;
-  isHighlight?: boolean;
-  isSmall?: boolean;
+  isPercentage?: boolean;
 }
 
-function ResultRow({
-  label,
-  value,
-  language,
-  isDeduction,
-  isBold,
-  isHighlight,
-  isSmall,
-}: ResultRowProps) {
+function ResultRow({ label, value, language, isDeduction, isBold, isPercentage }: ResultRowProps) {
   return (
-    <div className={`flex justify-between items-center ${isSmall ? 'text-sm' : ''}`}>
-      <span className={`${isBold ? 'font-bold' : ''} ${isHighlight ? 'text-accent' : ''}`}>
-        {label}
+    <div className={`flex justify-between items-center ${isBold ? 'font-bold' : ''}`}>
+      <span className="text-sm text-foreground">{label}</span>
+      <span className={`text-sm font-mono ${isDeduction ? 'text-destructive' : 'text-foreground'}`}>
+        {isPercentage ? `${value.toFixed(2)}%` : formatCurrency(value, language)}
       </span>
-      <span
-        className={`font-mono ${isBold ? 'font-bold' : 'font-medium'} ${
-          isHighlight ? 'text-accent text-lg' : ''
-        } ${isDeduction ? 'text-destructive' : ''}`}
-      >
-        {isDeduction ? '− ' : ''}
-        {formatCurrency(Math.abs(value), language)}
-      </span>
+    </div>
+  );
+}
+
+interface MinimumWageTableProps {
+  language: 'en' | 'vi';
+  year?: 2025 | 2026;
+}
+
+function MinimumWageTable({ language, year = 2026 }: MinimumWageTableProps) {
+  const minimumWages: Record<string, Record<number, number>> = {
+    I: { 2025: 5_300_000, 2026: 5_680_000 },
+    II: { 2025: 4_640_000, 2026: 4_970_000 },
+    III: { 2025: 4_110_000, 2026: 4_410_000 },
+    IV: { 2025: 3_680_000, 2026: 3_945_000 },
+  };
+
+  return (
+    <div className="space-y-4">
+      {Object.entries(minimumWages).map(([region, wages]) => (
+        <div key={region} className="space-y-2">
+          <h4 className="font-mono font-semibold text-sm">
+            {language === 'en' ? `Region ${region}` : `Vùng ${region}`}
+          </h4>
+          <div className="grid grid-cols-3 gap-4 text-xs">
+            <div>
+              <p className="text-muted-foreground">{t('year2025', language)}</p>
+              <p className="font-mono font-semibold">{formatCurrency(wages[2025] ?? 0, language)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">{t('year2026', language)}</p>
+              <p className="font-mono font-semibold">{formatCurrency(wages[2026] ?? 0, language)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">{t('increase', language)}</p>
+              <p className="font-mono font-semibold text-accent">
+                +{formatCurrency((wages[2026] ?? 0) - (wages[2025] ?? 0), language)}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
