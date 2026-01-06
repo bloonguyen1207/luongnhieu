@@ -10,7 +10,7 @@ export type Language = 'en' | 'vi';
 export const translations = {
   en: {
     // Header
-    appTitle: 'LuongNhieu',
+    appTitle: 'Lương Nhiêu',
     appSubtitle: 'Vietnam Salary Calculator',
     appDescription: 'Calculate your net salary, taxes, and insurance contributions based on Vietnam labor law',
 
@@ -21,8 +21,8 @@ export const translations = {
     settings: 'Settings',
 
     // Input Labels
-    grossSalary: 'Gross Salary (Lương Trước Thuế)',
-    netSalary: 'Net Salary (Lương Ròng)',
+    grossSalary: 'Gross Salary (Lương Tổng)',
+    netSalary: 'Net Salary (Lương Thực Nhận)',
     grossSalaryPlaceholder: 'Enter monthly salary',
     region: 'Region',
     regionI: 'Region I (Hanoi, HCMC, Hai Phong)',
@@ -130,9 +130,9 @@ export const translations = {
 
   vi: {
     // Header
-    appTitle: 'LuongNhieu',
-    appSubtitle: 'Máy Tính Lương Việt Nam',
-    appDescription: 'Tính toán lương ròng, thuế, và đóng góp bảo hiểm dựa trên luật lao động Việt Nam',
+    appTitle: 'Lương Nhiêu',
+    appSubtitle: 'Tính Lương Việt Nam',
+    appDescription: 'Tính toán lương ròng, thuế, và BHXH dựa trên luật lao động Việt Nam',
 
     // Navigation
     calculator: 'Máy Tính',
@@ -141,8 +141,8 @@ export const translations = {
     settings: 'Cài Đặt',
 
     // Input Labels
-    grossSalary: 'Lương Trước Thuế',
-    netSalary: 'Lương Ròng',
+    grossSalary: 'Lương Tổng',
+    netSalary: 'Lương Thực Nhận',
     grossSalaryPlaceholder: 'Nhập lương hàng tháng',
     region: 'Vùng',
     regionI: 'Vùng I (Hà Nội, TP HCM, Hải Phòng)',
@@ -167,7 +167,7 @@ export const translations = {
     totalDeductionsLabel: 'Tổng Giảm Trừ',
     taxableIncomeLabel: 'Thu Nhập Chịu Thuế',
     personalIncomeTaxLabel: 'Thuế Thu Nhập Cá Nhân (TNCN)',
-    netSalaryTakeHome: 'Lương Ròng (Thực Nhận)',
+    netSalaryTakeHome: 'Lương Thực Nhận',
     monthlyTakeHome: 'Lương thực nhận hàng tháng',
 
     // Employer Section
@@ -178,7 +178,7 @@ export const translations = {
     employerUnemploymentInsuranceLabel: 'Bảo Hiểm Thất Nghiệp Của NTD (1%)',
     totalEmployerContributionLabel: 'Tổng Đóng Góp Của NTD',
     totalEmployerCostLabel: 'Tổng Chi Phí Của NTD',
-    employerNote: 'Đây là những khoản mà nhà tuyển dụng phải trả thêm ngoài lương brutto của bạn',
+    employerNote: 'Đây là những khoản mà nhà tuyển dụng phải trả thêm ngoài lương tổng của bạn',
 
     // Comparison Section
     comparisonTitle: 'So Sánh Luật Thuế',
@@ -217,7 +217,7 @@ export const translations = {
     noData: 'Không có dữ liệu để hiển thị',
 
     // Footer
-    disclaimer: 'Máy tính này dựa trên luật lao động Việt Nam từ 2025-2026. Để biết thông tin thuế chính thức, hãy liên hệ Cục Thuế Việt Nam.',
+    disclaimer: 'Website này dựa trên luật lao động Việt Nam từ 2025-2026. Để biết thông tin thuế chính thức, hãy liên hệ Cục Thuế Việt Nam.',
     builtWith: 'Xây dựng với độ chính xác cho sự rõ ràng',
     footer: '© 2026 LuongNhieu. Tất cả quyền được bảo lưu. Chỉ dùng cho mục đích thông tin.',
 
