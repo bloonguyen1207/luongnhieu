@@ -21,6 +21,7 @@ export const translations = {
     settings: 'Settings',
 
     // Input Labels
+    salary: 'Salary',
     grossSalary: 'Gross Salary (Lương Tổng)',
     netSalary: 'Net Salary (Lương Thực Nhận)',
     grossSalaryPlaceholder: 'Enter monthly salary',
@@ -141,6 +142,7 @@ export const translations = {
     settings: 'Cài Đặt',
 
     // Input Labels
+    salary: 'Lương',
     grossSalary: 'Lương Tổng',
     netSalary: 'Lương Thực Nhận',
     grossSalaryPlaceholder: 'Nhập lương hàng tháng',

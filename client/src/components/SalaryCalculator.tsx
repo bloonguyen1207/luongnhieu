@@ -14,6 +14,16 @@ import { calculateSalary, formatCurrency, SalaryBreakdown } from '@/lib/salaryCa
 import { t } from '@/lib/i18n';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+// Format number with comma separators for display
+function formatNumberInput(value: number): string {
+  return value.toLocaleString('en-US');
+}
+
+// Parse input value, removing commas
+function parseNumberInput(value: string): number {
+  return Number(value.replace(/,/g, ''));
+}
+
 /**
  * SalaryCalculator Component
  * Design Philosophy: Steampunk-Neo Minimalist
@@ -25,6 +35,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 export function SalaryCalculator() {
   const { language } = useLanguage();
   const [salary, setSalary] = useState<number>(10_000_000);
+  const [salaryDisplay, setSalaryDisplay] = useState<string>(formatNumberInput(10_000_000));
   const [salaryType, setSalaryType] = useState<'gross' | 'net'>('gross');
   const [region, setRegion] = useState<'I' | 'II' | 'III' | 'IV'>('I');
   const [dependents, setDependents] = useState<number>(0);
@@ -42,10 +53,22 @@ export function SalaryCalculator() {
 
   const handleReset = () => {
     setSalary(10_000_000);
+    setSalaryDisplay(formatNumberInput(10_000_000));
     setSalaryType('gross');
     setRegion('I');
     setDependents(0);
     setYear(2026);
+  };
+
+  const handleSalaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    const parsed = parseNumberInput(input);
+    setSalary(isNaN(parsed) ? 0 : parsed);
+    setSalaryDisplay(input);
+  };
+
+  const handleSalaryBlur = () => {
+    setSalaryDisplay(formatNumberInput(salary));
   };
 
   return (
@@ -60,7 +83,7 @@ export function SalaryCalculator() {
           {/* Salary Input */}
           <div className="space-y-2">
             <Label htmlFor="salary" className="text-sm font-medium">
-              {salaryType === 'gross' ? t('grossSalary', language) : t('netSalary', language)}
+              {t('salary', language)}
             </Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
@@ -68,33 +91,31 @@ export function SalaryCalculator() {
               </span>
               <Input
                 id="salary"
-                type="number"
-                value={salary}
-                onChange={(e) => setSalary(Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                value={salaryDisplay}
+                onChange={handleSalaryChange}
+                onBlur={handleSalaryBlur}
                 placeholder={t('grossSalaryPlaceholder', language)}
                 className="pl-6 font-mono text-base"
-                min="0"
-                step="100000"
               />
             </div>
             <div className="flex gap-2 mt-2">
               <button
                 onClick={() => setSalaryType('gross')}
-                className={`text-xs px-3 py-1 rounded transition-colors ${
-                  salaryType === 'gross'
+                className={`text-xs px-3 py-1 rounded transition-colors ${salaryType === 'gross'
                     ? 'bg-accent text-accent-foreground'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
+                  }`}
               >
-                {language === 'en' ? 'Gross' : 'Brutto'}
+                {language === 'en' ? 'Gross' : 'Trước thuế'}
               </button>
               <button
                 onClick={() => setSalaryType('net')}
-                className={`text-xs px-3 py-1 rounded transition-colors ${
-                  salaryType === 'net'
+                className={`text-xs px-3 py-1 rounded transition-colors ${salaryType === 'net'
                     ? 'bg-accent text-accent-foreground'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
+                  }`}
               >
                 {language === 'en' ? 'Net' : 'Ròng'}
               </button>
