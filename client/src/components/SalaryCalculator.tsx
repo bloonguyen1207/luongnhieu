@@ -10,7 +10,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { calculateSalary, formatCurrency, SalaryBreakdown } from '@/lib/salaryCalculator';
+import {
+  calculateSalary,
+  calculateFreelancerContract,
+  calculateFreelancerBusiness,
+  formatCurrency,
+  SalaryBreakdown,
+  FreelancerContractBreakdown,
+  FreelancerBusinessBreakdown,
+  WorkerType,
+  PayerType,
+} from '@/lib/salaryCalculator';
 import { t } from '@/lib/i18n';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -24,14 +34,6 @@ function parseNumberInput(value: string): number {
   return Number(value.replace(/,/g, ''));
 }
 
-/**
- * SalaryCalculator Component
- * Design Philosophy: Steampunk-Neo Minimalist
- * - Input section with clean grid layout
- * - Real-time calculation with smooth transitions
- * - Precision typography for numbers (monospace)
- */
-
 export function SalaryCalculator() {
   const { language } = useLanguage();
   const [salary, setSalary] = useState<number>(10_000_000);
@@ -40,8 +42,10 @@ export function SalaryCalculator() {
   const [region, setRegion] = useState<'I' | 'II' | 'III' | 'IV'>('I');
   const [dependents, setDependents] = useState<number>(0);
   const [year, setYear] = useState<2025 | 2026>(2026);
+  const [workerType, setWorkerType] = useState<WorkerType>('employee');
+  const [payerType, setPayerType] = useState<PayerType>('domestic');
 
-  const result = useMemo<SalaryBreakdown>(() => {
+  const employeeResult = useMemo<SalaryBreakdown>(() => {
     return calculateSalary({
       salary,
       salaryType,
@@ -51,6 +55,14 @@ export function SalaryCalculator() {
     });
   }, [salary, salaryType, region, dependents, year]);
 
+  const freelancerContractResult = useMemo<FreelancerContractBreakdown>(() => {
+    return calculateFreelancerContract(salary, dependents, year, salaryType, payerType);
+  }, [salary, salaryType, dependents, year, payerType]);
+
+  const freelancerBusinessResult = useMemo<FreelancerBusinessBreakdown>(() => {
+    return calculateFreelancerBusiness(salary, year);
+  }, [salary, year]);
+
   const handleReset = () => {
     setSalary(10_000_000);
     setSalaryDisplay(formatNumberInput(10_000_000));
@@ -58,6 +70,8 @@ export function SalaryCalculator() {
     setRegion('I');
     setDependents(0);
     setYear(2026);
+    setWorkerType('employee');
+    setPayerType('domestic');
   };
 
   const handleSalaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,6 +85,16 @@ export function SalaryCalculator() {
     setSalaryDisplay(formatNumberInput(salary));
   };
 
+  const isFreelancer = workerType !== 'employee';
+  const showNetGrossToggle = workerType !== 'freelancerBusiness';
+
+  const salaryLabel =
+    workerType === 'freelancerContract'
+      ? t('monthlyPayment', language)
+      : workerType === 'freelancerBusiness'
+      ? t('monthlyRevenue', language)
+      : t('salary', language);
+
   return (
     <div className="space-y-8">
       {/* Input Section */}
@@ -79,11 +103,66 @@ export function SalaryCalculator() {
           {t('calculator', language)}
         </h2>
 
+        {/* Worker Type Toggle */}
+        <div className="mb-6">
+          <Label className="text-sm font-medium block mb-2">{t('workerType', language)}</Label>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { v: 'employee', k: 'workerTypeEmployee' },
+                { v: 'freelancerContract', k: 'workerTypeFreelancerContract' },
+                { v: 'freelancerBusiness', k: 'workerTypeFreelancerBusiness' },
+              ] as Array<{ v: WorkerType; k: string }>
+            ).map(({ v, k }) => (
+              <button
+                key={v}
+                onClick={() => setWorkerType(v)}
+                className={`text-xs px-3 py-2 rounded transition-colors ${
+                  workerType === v
+                    ? 'bg-accent text-accent-foreground'
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                {t(k, language)}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">{t('workerTypeHint', language)}</p>
+        </div>
+
+        {/* Payer Type Toggle (only for Service Contract) */}
+        {workerType === 'freelancerContract' && (
+          <div className="mb-6">
+            <Label className="text-sm font-medium block mb-2">{t('payerType', language)}</Label>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { v: 'domestic', k: 'payerTypeDomestic' },
+                  { v: 'foreign', k: 'payerTypeForeign' },
+                ] as Array<{ v: PayerType; k: string }>
+              ).map(({ v, k }) => (
+                <button
+                  key={v}
+                  onClick={() => setPayerType(v)}
+                  className={`text-xs px-3 py-2 rounded transition-colors ${
+                    payerType === v
+                      ? 'bg-accent text-accent-foreground'
+                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  }`}
+                >
+                  {t(k, language)}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">{t('payerTypeHint', language)}</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Salary Input */}
           <div className="space-y-2">
             <Label htmlFor="salary" className="text-sm font-medium">
-              {t('salary', language)}
+              {salaryLabel}
             </Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
@@ -100,63 +179,69 @@ export function SalaryCalculator() {
                 className="pl-6 font-mono text-base"
               />
             </div>
-            <div className="flex gap-2 mt-2">
-              <button
-                onClick={() => setSalaryType('gross')}
-                className={`text-xs px-3 py-1 rounded transition-colors ${salaryType === 'gross'
-                    ? 'bg-accent text-accent-foreground'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                  }`}
-              >
-                {language === 'en' ? 'Gross' : 'Trước thuế'}
-              </button>
-              <button
-                onClick={() => setSalaryType('net')}
-                className={`text-xs px-3 py-1 rounded transition-colors ${salaryType === 'net'
-                    ? 'bg-accent text-accent-foreground'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                  }`}
-              >
-                {language === 'en' ? 'Net' : 'Ròng'}
-              </button>
+            {showNetGrossToggle && (
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => setSalaryType('gross')}
+                  className={`text-xs px-3 py-1 rounded transition-colors ${salaryType === 'gross'
+                      ? 'bg-accent text-accent-foreground'
+                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    }`}
+                >
+                  {language === 'en' ? 'Gross' : 'Trước thuế'}
+                </button>
+                <button
+                  onClick={() => setSalaryType('net')}
+                  className={`text-xs px-3 py-1 rounded transition-colors ${salaryType === 'net'
+                      ? 'bg-accent text-accent-foreground'
+                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    }`}
+                >
+                  {language === 'en' ? 'Net' : 'Ròng'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Region (only relevant to employee for minimum wage display) */}
+          {!isFreelancer && (
+            <div className="space-y-2">
+              <Label htmlFor="region" className="text-sm font-medium">
+                {t('region', language)}
+              </Label>
+              <Select value={region} onValueChange={(value: any) => setRegion(value)}>
+                <SelectTrigger id="region" className="font-mono">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="I">{t('regionI', language)}</SelectItem>
+                  <SelectItem value="II">{t('regionII', language)}</SelectItem>
+                  <SelectItem value="III">{t('regionIII', language)}</SelectItem>
+                  <SelectItem value="IV">{t('regionIV', language)}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </div>
+          )}
 
-          {/* Region */}
-          <div className="space-y-2">
-            <Label htmlFor="region" className="text-sm font-medium">
-              {t('region', language)}
-            </Label>
-            <Select value={region} onValueChange={(value: any) => setRegion(value)}>
-              <SelectTrigger id="region" className="font-mono">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="I">{t('regionI', language)}</SelectItem>
-                <SelectItem value="II">{t('regionII', language)}</SelectItem>
-                <SelectItem value="III">{t('regionIII', language)}</SelectItem>
-                <SelectItem value="IV">{t('regionIV', language)}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Dependents */}
-          <div className="space-y-2">
-            <Label htmlFor="dependents" className="text-sm font-medium">
-              {t('dependents', language)}
-            </Label>
-            <Input
-              id="dependents"
-              type="number"
-              value={dependents}
-              onChange={(e) => setDependents(Math.max(0, Number(e.target.value)))}
-              placeholder="0"
-              className="font-mono text-base"
-              min="0"
-              max="10"
-            />
-            <p className="text-xs text-muted-foreground">{t('dependentsHint', language)}</p>
-          </div>
+          {/* Dependents (only meaningful when PIT brackets apply: employee or service contract) */}
+          {workerType !== 'freelancerBusiness' && (
+            <div className="space-y-2">
+              <Label htmlFor="dependents" className="text-sm font-medium">
+                {t('dependents', language)}
+              </Label>
+              <Input
+                id="dependents"
+                type="number"
+                value={dependents}
+                onChange={(e) => setDependents(Math.max(0, Number(e.target.value)))}
+                placeholder="0"
+                className="font-mono text-base"
+                min="0"
+                max="10"
+              />
+              <p className="text-xs text-muted-foreground">{t('dependentsHint', language)}</p>
+            </div>
+          )}
 
           {/* Year */}
           <div className="space-y-2">
@@ -188,7 +273,13 @@ export function SalaryCalculator() {
       </Card>
 
       {/* Results Section */}
-      <SalaryResults result={result} language={language} />
+      {workerType === 'employee' && <SalaryResults result={employeeResult} language={language} />}
+      {workerType === 'freelancerContract' && (
+        <FreelancerContractResults result={freelancerContractResult} language={language} />
+      )}
+      {workerType === 'freelancerBusiness' && (
+        <FreelancerBusinessResults result={freelancerBusinessResult} language={language} />
+      )}
     </div>
   );
 }
@@ -451,6 +542,297 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
         {expandedSections.has('minimumWage') && (
           <div className="space-y-4 pt-4 border-t border-border">
             <MinimumWageTable language={language} year={(result as any).year || 2026} />
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+interface FreelancerContractResultsProps {
+  result: FreelancerContractBreakdown;
+  language: 'en' | 'vi';
+}
+
+function FreelancerContractResults({ result, language }: FreelancerContractResultsProps) {
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['monthly', 'annual']));
+  const toggleSection = (s: string) => {
+    const next = new Set(expandedSections);
+    if (next.has(s)) next.delete(s); else next.add(s);
+    setExpandedSections(next);
+  };
+
+  const isForeign = result.payerType === 'foreign';
+  const refundPositive = result.finalizationDelta >= 0;
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-8 bg-gradient-to-br from-accent/5 to-transparent border-2 border-accent">
+        <div className="text-center">
+          <p className="text-sm font-medium text-muted-foreground mb-2">
+            {t('monthlyNetTakeHome', language)}
+          </p>
+          <p className="text-4xl font-mono font-bold text-accent">
+            {formatCurrency(result.monthlyNet, language)}
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            {isForeign ? t('foreignPayerNote', language) : t('withholdingNote', language)}
+          </p>
+        </div>
+      </Card>
+
+      <Card className="p-6 border-l-4 border-l-primary">
+        <button
+          onClick={() => toggleSection('monthly')}
+          className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+        >
+          <h3 className="text-lg font-mono font-bold">{t('freelancerContractTitle', language)}</h3>
+          <span className="text-2xl text-muted-foreground">
+            {expandedSections.has('monthly') ? '−' : '+'}
+          </span>
+        </button>
+
+        {expandedSections.has('monthly') && (
+          <div className="space-y-3 pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground mb-2">
+              {t('freelancerContractDescription', language)}
+            </p>
+            <ResultRow
+              label={t('monthlyPayment', language)}
+              value={result.monthlyGross}
+              language={language}
+            />
+            {!isForeign && (
+              <ResultRow
+                label={t('monthlyWithholding', language)}
+                value={-result.monthlyWithholding}
+                language={language}
+                isDeduction
+              />
+            )}
+            <div className="my-2 border-t border-border" />
+            <ResultRow
+              label={t('monthlyNetTakeHome', language)}
+              value={result.monthlyNet}
+              language={language}
+              isBold
+            />
+            {isForeign && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {t('selfDeclareWarning', language)}
+              </p>
+            )}
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-6 border-l-4 border-l-primary">
+        <button
+          onClick={() => toggleSection('annual')}
+          className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+        >
+          <h3 className="text-lg font-mono font-bold">{t('annualFinalization', language)}</h3>
+          <span className="text-2xl text-muted-foreground">
+            {expandedSections.has('annual') ? '−' : '+'}
+          </span>
+        </button>
+
+        {expandedSections.has('annual') && (
+          <div className="space-y-3 pt-4 border-t border-border">
+            <ResultRow
+              label={t('annualGross', language)}
+              value={result.annualGross}
+              language={language}
+            />
+            <ResultRow
+              label={t('annualPersonalDeduction', language)}
+              value={-result.personalDeduction}
+              language={language}
+              isDeduction
+            />
+            <ResultRow
+              label={t('annualDependentDeduction', language)}
+              value={-result.dependentDeduction}
+              language={language}
+              isDeduction
+            />
+            <div className="my-2 border-t border-border" />
+            <ResultRow
+              label={t('annualTaxableIncome', language)}
+              value={result.annualTaxableIncome}
+              language={language}
+            />
+            <ResultRow
+              label={isForeign ? t('annualPITOwed', language) : t('annualFinalPIT', language)}
+              value={-result.annualFinalPIT}
+              language={language}
+              isDeduction
+              isBold
+            />
+            {!isForeign && (
+              <>
+                <ResultRow
+                  label={t('annualWithholdingPaid', language)}
+                  value={result.annualWithholdingPaid}
+                  language={language}
+                />
+                <div className="my-2 border-t border-border" />
+                <ResultRow
+                  label={refundPositive ? t('finalizationRefund', language) : t('finalizationOwed', language)}
+                  value={Math.abs(result.finalizationDelta) * (refundPositive ? 1 : -1)}
+                  language={language}
+                  isBold
+                  isDeduction={!refundPositive}
+                />
+              </>
+            )}
+            <div className="my-2 border-t border-border" />
+            <ResultRow
+              label={t('annualNet', language)}
+              value={result.annualNet}
+              language={language}
+              isBold
+            />
+            <ResultRow
+              label={t('monthlyNetEffective', language)}
+              value={result.monthlyNetAfterFinalization}
+              language={language}
+              isBold
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              {t('freelancerContractFooter', language)}
+            </p>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+interface FreelancerBusinessResultsProps {
+  result: FreelancerBusinessBreakdown;
+  language: 'en' | 'vi';
+}
+
+function FreelancerBusinessResults({ result, language }: FreelancerBusinessResultsProps) {
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['breakdown']));
+  const toggleSection = (s: string) => {
+    const next = new Set(expandedSections);
+    if (next.has(s)) next.delete(s); else next.add(s);
+    setExpandedSections(next);
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-8 bg-gradient-to-br from-accent/5 to-transparent border-2 border-accent">
+        <div className="text-center">
+          <p className="text-sm font-medium text-muted-foreground mb-2">
+            {t('monthlyNetTakeHome', language)}
+          </p>
+          <p className="text-4xl font-mono font-bold text-accent">
+            {formatCurrency(result.monthlyNet, language)}
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            {result.isExempt ? t('exemptStatus', language) : t('notExemptStatus', language)}
+          </p>
+        </div>
+      </Card>
+
+      <Card className="p-6 border-l-4 border-l-primary">
+        <button
+          onClick={() => toggleSection('breakdown')}
+          className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+        >
+          <h3 className="text-lg font-mono font-bold">{t('freelancerBusinessTitle', language)}</h3>
+          <span className="text-2xl text-muted-foreground">
+            {expandedSections.has('breakdown') ? '−' : '+'}
+          </span>
+        </button>
+
+        {expandedSections.has('breakdown') && (
+          <div className="space-y-3 pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground mb-2">
+              {t('freelancerBusinessDescription', language)}
+            </p>
+
+            <ResultRow
+              label={t('monthlyRevenue', language)}
+              value={result.monthlyRevenue}
+              language={language}
+            />
+            <ResultRow
+              label={t('annualRevenue', language)}
+              value={result.annualRevenue}
+              language={language}
+            />
+            <ResultRow
+              label={t('exemptThreshold', language)}
+              value={result.exemptThreshold}
+              language={language}
+            />
+
+            <div className="my-2 border-t border-border" />
+
+            <ResultRow
+              label={t('vatLabel', language)}
+              value={-result.monthlyVAT}
+              language={language}
+              isDeduction
+            />
+            <ResultRow
+              label={t('businessPITLabel', language)}
+              value={-result.monthlyPIT}
+              language={language}
+              isDeduction
+            />
+            <ResultRow
+              label={t('totalTaxLabel', language)}
+              value={-result.monthlyTotalTax}
+              language={language}
+              isDeduction
+              isBold
+            />
+
+            <div className="my-2 border-t border-border" />
+
+            <ResultRow
+              label={t('annualVATLabel', language)}
+              value={-result.annualVAT}
+              language={language}
+              isDeduction
+            />
+            <ResultRow
+              label={t('annualPITLabel', language)}
+              value={-result.annualPIT}
+              language={language}
+              isDeduction
+            />
+            <ResultRow
+              label={t('annualTotalTax', language)}
+              value={-result.annualTotalTax}
+              language={language}
+              isDeduction
+              isBold
+            />
+
+            <div className="my-2 border-t border-border" />
+
+            <ResultRow
+              label={t('monthlyNetTakeHome', language)}
+              value={result.monthlyNet}
+              language={language}
+              isBold
+            />
+            <ResultRow
+              label={t('annualNet', language)}
+              value={result.annualNet}
+              language={language}
+              isBold
+            />
+
+            <p className="text-xs text-muted-foreground mt-2">
+              {t('freelancerBusinessFooter', language)}
+            </p>
           </div>
         )}
       </Card>
