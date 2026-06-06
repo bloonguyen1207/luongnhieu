@@ -595,7 +595,9 @@ function FreelancerContractResults({ result, language }: FreelancerContractResul
         {expandedSections.has('monthly') && (
           <div className="space-y-3 pt-4 border-t border-border">
             <p className="text-xs text-muted-foreground mb-2">
-              {t('freelancerContractDescription', language)}
+              {isForeign
+                ? t('freelancerContractDescriptionForeign', language)
+                : t('freelancerContractDescription', language)}
             </p>
             <ResultRow
               label={t('monthlyPayment', language)}
@@ -700,7 +702,9 @@ function FreelancerContractResults({ result, language }: FreelancerContractResul
               isBold
             />
             <p className="text-xs text-muted-foreground mt-2">
-              {t('freelancerContractFooter', language)}
+              {isForeign
+                ? t('freelancerContractFooterForeign', language)
+                : t('freelancerContractFooter', language)}
             </p>
           </div>
         )}
