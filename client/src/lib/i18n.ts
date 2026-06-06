@@ -229,6 +229,17 @@ export const translations = {
     bracketTax: 'Tax',
     bracketTotal: 'Total PIT',
 
+    // Period-scaled finalization
+    finalizationTitle: 'Tax Finalization',
+    finGross: 'Gross Income',
+    finPersonalDeduction: 'Personal Deduction',
+    finDependentDeduction: 'Dependent Deduction',
+    finTaxableIncome: 'Taxable Income',
+    finPIT: 'PIT (Progressive)',
+    finPITOwed: 'PIT Owed',
+    finWithholdingPaid: 'Withholding Already Paid',
+    finNet: 'Net (After Finalization)',
+
     // Legal sources / footer
     legalSources: 'Legal Sources',
     lawPit2025: 'Law on Personal Income Tax (Law 109/2025/QH15)',
@@ -478,6 +489,17 @@ export const translations = {
     bracketIncome: 'Thu Nhập Trong Bậc',
     bracketTax: 'Tiền Thuế',
     bracketTotal: 'Tổng TNCN',
+
+    // Period-scaled finalization
+    finalizationTitle: 'Quyết Toán Thuế',
+    finGross: 'Thu Nhập',
+    finPersonalDeduction: 'Giảm Trừ Cá Nhân',
+    finDependentDeduction: 'Giảm Trừ Người Phụ Thuộc',
+    finTaxableIncome: 'Thu Nhập Chịu Thuế',
+    finPIT: 'TNCN (Lũy Tiến)',
+    finPITOwed: 'TNCN Phải Nộp',
+    finWithholdingPaid: 'Đã Khấu Trừ',
+    finNet: 'Thực Nhận (Sau Quyết Toán)',
 
     // Legal sources / footer
     legalSources: 'Cơ Sở Pháp Lý',

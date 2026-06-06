@@ -756,7 +756,8 @@ function FreelancerContractResults({ result, language }: FreelancerContractResul
       ? 'periodQuarterly'
       : 'periodAnnually';
   const hasVoluntary = result.voluntaryInsurance.monthlyTotal > 0;
-  const isAnnualView = result.period === 'annually';
+  const periodMonths = result.period === 'monthly' ? 1 : result.period === 'quarterly' ? 3 : 12;
+  const scale = periodMonths / 12; // annual → period factor
   const heroSubLabel = isForeign
     ? t('heroSelfDeclared', language)
     : t('heroAfterAllTaxes', language);
@@ -891,93 +892,87 @@ function FreelancerContractResults({ result, language }: FreelancerContractResul
         </Card>
       )}
 
-      {/* Annual Tax Finalization — hidden when Summary already shows annual */}
-      {!isAnnualView && (
-        <Card className="p-6 border-l-4 border-l-primary">
-          <button
-            onClick={() => toggleSection('annual')}
-            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
-            aria-expanded={expandedSections.has('annual')}
-          >
-            <h3 className="text-lg font-mono font-bold">{t('annualFinalization', language)}</h3>
-            <span className="text-2xl text-muted-foreground" aria-hidden>
-              {expandedSections.has('annual') ? '−' : '+'}
-            </span>
-          </button>
+      {/* Tax Finalization — scaled to the selected period */}
+      <Card className="p-6 border-l-4 border-l-primary">
+        <button
+          onClick={() => toggleSection('annual')}
+          className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+          aria-expanded={expandedSections.has('annual')}
+        >
+          <h3 className="text-lg font-mono font-bold">
+            {t('finalizationTitle', language)} · {t(periodKey, language)}
+          </h3>
+          <span className="text-2xl text-muted-foreground" aria-hidden>
+            {expandedSections.has('annual') ? '−' : '+'}
+          </span>
+        </button>
 
-          {expandedSections.has('annual') && (
-            <div className="space-y-3 pt-4 border-t border-border">
-              <ResultRow
-                label={t('annualGross', language)}
-                value={result.annualGross}
-                language={language}
-              />
-              <ResultRow
-                label={t('annualPersonalDeduction', language)}
-                value={-result.personalDeduction}
-                language={language}
-                isDeduction
-              />
-              <ResultRow
-                label={t('annualDependentDeduction', language)}
-                value={-result.dependentDeduction}
-                language={language}
-                isDeduction
-              />
-              <div className="my-2 border-t border-border" />
-              <ResultRow
-                label={t('annualTaxableIncome', language)}
-                value={result.annualTaxableIncome}
-                language={language}
-              />
-              <ResultRow
-                label={isForeign ? t('annualPITOwed', language) : t('annualFinalPIT', language)}
-                value={-result.annualFinalPIT}
-                language={language}
-                isDeduction
-                isBold
-              />
-              {!isForeign && (
-                <>
-                  <ResultRow
-                    label={t('annualWithholdingPaid', language)}
-                    value={result.annualWithholdingPaid}
-                    language={language}
-                  />
-                  <div className="my-2 border-t border-border" />
-                  <ResultRow
-                    label={refundPositive ? t('finalizationRefund', language) : t('finalizationOwed', language)}
-                    value={Math.abs(result.finalizationDelta) * (refundPositive ? 1 : -1)}
-                    language={language}
-                    isBold
-                    isDeduction={!refundPositive}
-                  />
-                </>
-              )}
-              <div className="my-2 border-t border-border" />
-              <ResultRow
-                label={t('heroFinalizationNet', language)}
-                value={result.annualNet}
-                language={language}
-                isBold
-              />
-              <ResultRow
-                label={t('monthlyNetEffective', language)}
-                value={result.monthlyNetAfterFinalization}
-                language={language}
-                isBold
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                {isForeign
-                  ? t('freelancerContractFooterForeign', language)
-                  : t('freelancerContractFooter', language)}
-              </p>
-            </div>
-          )}
-        </Card>
-      )}
+        {expandedSections.has('annual') && (
+          <div className="space-y-3 pt-4 border-t border-border">
+            <ResultRow
+              label={t('finGross', language)}
+              value={result.annualGross * scale}
+              language={language}
+            />
+            <ResultRow
+              label={t('finPersonalDeduction', language)}
+              value={-result.personalDeduction * scale}
+              language={language}
+              isDeduction
+            />
+            <ResultRow
+              label={t('finDependentDeduction', language)}
+              value={-result.dependentDeduction * scale}
+              language={language}
+              isDeduction
+            />
+            <div className="my-2 border-t border-border" />
+            <ResultRow
+              label={t('finTaxableIncome', language)}
+              value={result.annualTaxableIncome * scale}
+              language={language}
+            />
+            <ResultRow
+              label={isForeign ? t('finPITOwed', language) : t('finPIT', language)}
+              value={-result.annualFinalPIT * scale}
+              language={language}
+              isDeduction
+              isBold
+            />
+            {!isForeign && (
+              <>
+                <ResultRow
+                  label={t('finWithholdingPaid', language)}
+                  value={result.annualWithholdingPaid * scale}
+                  language={language}
+                />
+                <div className="my-2 border-t border-border" />
+                <ResultRow
+                  label={refundPositive ? t('finalizationRefund', language) : t('finalizationOwed', language)}
+                  value={Math.abs(result.finalizationDelta) * scale * (refundPositive ? 1 : -1)}
+                  language={language}
+                  isBold
+                  isDeduction={!refundPositive}
+                />
+              </>
+            )}
+            <div className="my-2 border-t border-border" />
+            <ResultRow
+              label={t('finNet', language)}
+              value={result.annualNet * scale}
+              language={language}
+              isBold
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              {isForeign
+                ? t('freelancerContractFooterForeign', language)
+                : t('freelancerContractFooter', language)}
+            </p>
+          </div>
+        )}
+      </Card>
 
-      {/* PIT bracket breakdown */}
+      {/* PIT bracket breakdown — scaled to the selected period */}
       {result.pitBreakdown.length > 0 && (
         <Card className="p-6 border-l-4 border-l-primary">
           <button
@@ -985,13 +980,20 @@ function FreelancerContractResults({ result, language }: FreelancerContractResul
             className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
             aria-expanded={expandedSections.has('brackets')}
           >
-            <h3 className="text-lg font-mono font-bold">{t('pitBracketDetail', language)}</h3>
+            <h3 className="text-lg font-mono font-bold">
+              {t('pitBracketDetail', language)} · {t(periodKey, language)}
+            </h3>
             <span className="text-2xl text-muted-foreground" aria-hidden>
               {expandedSections.has('brackets') ? '−' : '+'}
             </span>
           </button>
           {expandedSections.has('brackets') && (
-            <BracketTable breakdown={result.pitBreakdown} total={result.annualFinalPIT} language={language} />
+            <BracketTable
+              breakdown={result.pitBreakdown}
+              total={result.annualFinalPIT / 12}
+              scale={periodMonths}
+              language={language}
+            />
           )}
         </Card>
       )}
@@ -1055,9 +1057,10 @@ interface BracketTableProps {
   breakdown: Array<{ bracket: number; income: number; rate: number; tax: number }>;
   total: number;
   language: 'en' | 'vi';
+  scale?: number; // multiply per-row amounts (e.g. 1 month, 3 quarter, 12 year)
 }
 
-function BracketTable({ breakdown, total, language }: BracketTableProps) {
+function BracketTable({ breakdown, total, language, scale = 1 }: BracketTableProps) {
   return (
     <div className="pt-4 border-t border-border overflow-x-auto">
       <table className="w-full text-sm">
@@ -1074,13 +1077,13 @@ function BracketTable({ breakdown, total, language }: BracketTableProps) {
             <tr key={row.bracket} className="border-b border-border/50">
               <td className="py-2 pr-4 font-mono">{row.bracket}</td>
               <td className="py-2 pr-4 font-mono">{row.rate.toFixed(0)}%</td>
-              <td className="py-2 pr-4 font-mono text-right">{formatCurrency(row.income, language)}</td>
-              <td className="py-2 font-mono text-right text-destructive">{formatCurrency(row.tax, language)}</td>
+              <td className="py-2 pr-4 font-mono text-right">{formatCurrency(row.income * scale, language)}</td>
+              <td className="py-2 font-mono text-right text-destructive">{formatCurrency(row.tax * scale, language)}</td>
             </tr>
           ))}
           <tr>
             <td className="py-2 pr-4 font-bold" colSpan={3}>{t('bracketTotal', language)}</td>
-            <td className="py-2 font-mono text-right font-bold text-destructive">{formatCurrency(total, language)}</td>
+            <td className="py-2 font-mono text-right font-bold text-destructive">{formatCurrency(total * scale, language)}</td>
           </tr>
         </tbody>
       </table>

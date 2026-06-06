@@ -457,9 +457,19 @@ export function calculateFreelancerContract(
   const dependentDeduction = DEPENDENT_DEDUCTIONS[year] * Math.max(0, dependents);
   const annualDeductions = (personalDeduction + dependentDeduction) * 12;
 
+  const voluntaryInsurance = calculateVoluntaryInsurance(voluntary);
+
+  // When the user enters a Net target, solve for the gross (invoice amount) such
+  // that the true take-home after finalization PIT (and voluntary insurance)
+  // equals what they want to keep. This is the amount to invoice the company.
   let gross = monthlyGross;
   if (salaryType === 'net') {
-    gross = solveFreelancerContractGross(monthlyGross, payerType);
+    gross = solveFreelancerContractGross(
+      monthlyGross,
+      annualDeductions,
+      year,
+      voluntaryInsurance.monthlyTotal
+    );
   }
 
   // A foreign payer with no Vietnamese tax registration cannot withhold PIT.
@@ -475,10 +485,18 @@ export function calculateFreelancerContract(
   const annualGross = gross * 12;
   const annualWithholdingPaid = monthlyWithholding * 12;
   const annualTaxableIncome = Math.max(0, annualGross - annualDeductions);
-  const { tax: annualFinalPIT, breakdown: pitBreakdown } = calculateProgressiveTax(
-    annualTaxableIncome,
+
+  // PIT finalization is annual, but Vietnam's progressive brackets are defined
+  // MONTHLY — for annual finalization the thresholds are annualized (×12).
+  // Equivalently: compute PIT on the monthly-equivalent taxable income, then ×12.
+  // (Applying monthly brackets directly to annual income would wrongly push
+  // everything into the top bracket.)
+  const monthlyTaxableIncome = annualTaxableIncome / 12;
+  const { tax: monthlyPIT, breakdown: pitBreakdown } = calculateProgressiveTax(
+    monthlyTaxableIncome,
     year === 2026 ? TAX_BRACKETS_2026 : TAX_BRACKETS_2025
   );
+  const annualFinalPIT = monthlyPIT * 12;
 
   // Positive delta = refund (over-withheld); negative = owe more
   const finalizationDelta = annualWithholdingPaid - annualFinalPIT;
@@ -494,7 +512,6 @@ export function calculateFreelancerContract(
   const periodFinalizationDelta = finalizationDelta * (months / 12);
   const periodNet = periodGross - periodFinalPIT;
 
-  const voluntaryInsurance = calculateVoluntaryInsurance(voluntary);
   const periodVoluntaryInsurance = voluntaryInsurance.monthlyTotal * months;
   const netAfterVoluntary = periodNet - periodVoluntaryInsurance;
 
@@ -505,11 +522,11 @@ export function calculateFreelancerContract(
   if (year === 2026) {
     const old2025Deductions =
       (PERSONAL_DEDUCTIONS[2025] + DEPENDENT_DEDUCTIONS[2025] * Math.max(0, dependents)) * 12;
-    const oldTaxable = Math.max(0, annualGross - old2025Deductions);
-    const { tax: old } = calculateProgressiveTax(oldTaxable, TAX_BRACKETS_2025);
-    oldLawAnnualPIT = old;
-    oldLawAnnualNet = annualGross - old;
-    taxSavings = old - annualFinalPIT;
+    const oldMonthlyTaxable = Math.max(0, annualGross - old2025Deductions) / 12;
+    const { tax: oldMonthly } = calculateProgressiveTax(oldMonthlyTaxable, TAX_BRACKETS_2025);
+    oldLawAnnualPIT = oldMonthly * 12;
+    oldLawAnnualNet = annualGross - oldLawAnnualPIT;
+    taxSavings = oldLawAnnualPIT - annualFinalPIT;
   }
 
   return {
@@ -546,17 +563,51 @@ export function calculateFreelancerContract(
   };
 }
 
-function solveFreelancerContractGross(
-  monthlyNetAfterWithholding: number,
-  payerType: PayerType
+/**
+ * True effective monthly net for a freelancer (after finalization PIT, before
+ * voluntary insurance). Withholding vs. self-declaration only affects cashflow
+ * timing, not the final amount, so this is payer-agnostic.
+ */
+function freelancerEffectiveMonthlyNet(
+  gross: number,
+  annualDeductions: number,
+  year: 2025 | 2026
 ): number {
-  // Foreign payer: no withholding, net = gross
-  if (payerType === 'foreign') return monthlyNetAfterWithholding;
-  // Domestic payer per-payment view: net = gross × (1 − 0.10) when gross ≥ 2M
-  if (monthlyNetAfterWithholding < FREELANCER_WITHHOLDING_THRESHOLD * 0.9) {
-    return monthlyNetAfterWithholding;
+  const monthlyTaxable = Math.max(0, gross - annualDeductions / 12);
+  const { tax: monthlyPIT } = calculateProgressiveTax(
+    monthlyTaxable,
+    year === 2026 ? TAX_BRACKETS_2026 : TAX_BRACKETS_2025
+  );
+  return gross - monthlyPIT;
+}
+
+/**
+ * Solve for the monthly gross (invoice amount) needed so that the take-home
+ * after finalization PIT and voluntary insurance equals the target net.
+ * Monotonic in gross → binary search.
+ */
+function solveFreelancerContractGross(
+  targetMonthlyNet: number,
+  annualDeductions: number,
+  year: 2025 | 2026,
+  voluntaryMonthly: number
+): number {
+  const want = targetMonthlyNet + voluntaryMonthly;
+  if (want <= 0) return 0;
+
+  let lo = want;
+  let hi = want * 2 + annualDeductions / 12 + 5_000_000;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    const net = freelancerEffectiveMonthlyNet(mid, annualDeductions, year);
+    if (net < want) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+    if (hi - lo < 0.001) break;
   }
-  return monthlyNetAfterWithholding / (1 - FREELANCER_WITHHOLDING_RATE);
+  return (lo + hi) / 2;
 }
 
 /**
