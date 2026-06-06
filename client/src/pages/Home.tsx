@@ -145,23 +145,24 @@ export default function Home() {
               </ul>
             </div>
 
-            {/* Support */}
+            {/* Legal sources */}
             <div>
-              <h4 className="font-mono font-bold mb-3">
-                {language === "en" ? "Information" : "Thông Tin"}
-              </h4>
-              <p className="text-sm text-muted-foreground">
-                {language === "en"
-                  ? "Built with precision for clarity"
-                  : "Xây dựng với độ chính xác cho sự rõ ràng"}
-              </p>
+              <h4 className="font-mono font-bold mb-3">{t("legalSources", language)}</h4>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                <li>{t("lawPit2025", language)}</li>
+                <li>{t("circular111", language)}</li>
+                <li>{t("circular40", language)}</li>
+                <li>{t("decree141", language)}</li>
+                <li>{t("lawSi2024", language)}</li>
+                <li>{t("lawEmployment2025", language)}</li>
+              </ul>
             </div>
           </div>
 
           {/* Disclaimer */}
           <div className="border-t border-border pt-6">
             <p className="text-xs text-muted-foreground text-center">
-              {t("disclaimer", language)}
+              {t("disclaimerUpdated", language)}
             </p>
           </div>
         </div>

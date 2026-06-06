@@ -114,6 +114,11 @@ export interface FreelancerContractBreakdown {
   voluntaryInsurance: VoluntaryInsuranceCost;
   periodVoluntaryInsurance: number;
   netAfterVoluntary: number; // period net minus voluntary insurance
+
+  // 2025 (old law) comparison — only meaningful when year === 2026
+  oldLawAnnualPIT?: number;
+  oldLawAnnualNet?: number;
+  taxSavings?: number;
 }
 
 export interface FreelancerBusinessBreakdown {
@@ -151,6 +156,14 @@ export interface FreelancerBusinessBreakdown {
   voluntaryInsurance: VoluntaryInsuranceCost;
   periodVoluntaryInsurance: number;
   netAfterVoluntary: number;
+
+  // 2025 (old law) comparison — only meaningful when year === 2026
+  // For household business, the 2025 threshold was ₫100M/year, so the same
+  // revenue may be exempt under 2026 (₫1B threshold) but taxable under 2025.
+  oldLawAnnualTax?: number;
+  oldLawAnnualNet?: number;
+  oldLawIsExempt?: boolean;
+  taxSavings?: number;
 }
 
 // Tax brackets 2026 (New 5-level system)
@@ -485,6 +498,20 @@ export function calculateFreelancerContract(
   const periodVoluntaryInsurance = voluntaryInsurance.monthlyTotal * months;
   const netAfterVoluntary = periodNet - periodVoluntaryInsurance;
 
+  // 2025 (old law) comparison — same income, but 7-bracket schedule + lower deductions
+  let oldLawAnnualPIT: number | undefined;
+  let oldLawAnnualNet: number | undefined;
+  let taxSavings: number | undefined;
+  if (year === 2026) {
+    const old2025Deductions =
+      (PERSONAL_DEDUCTIONS[2025] + DEPENDENT_DEDUCTIONS[2025] * Math.max(0, dependents)) * 12;
+    const oldTaxable = Math.max(0, annualGross - old2025Deductions);
+    const { tax: old } = calculateProgressiveTax(oldTaxable, TAX_BRACKETS_2025);
+    oldLawAnnualPIT = old;
+    oldLawAnnualNet = annualGross - old;
+    taxSavings = old - annualFinalPIT;
+  }
+
   return {
     mode: 'freelancerContract',
     year,
@@ -513,6 +540,9 @@ export function calculateFreelancerContract(
     voluntaryInsurance,
     periodVoluntaryInsurance,
     netAfterVoluntary,
+    oldLawAnnualPIT,
+    oldLawAnnualNet,
+    taxSavings,
   };
 }
 
@@ -564,6 +594,22 @@ export function calculateFreelancerBusiness(
   const periodVoluntaryInsurance = voluntaryInsurance.monthlyTotal * months;
   const netAfterVoluntary = periodNet - periodVoluntaryInsurance;
 
+  // 2025 (old law) comparison
+  let oldLawAnnualTax: number | undefined;
+  let oldLawAnnualNet: number | undefined;
+  let oldLawIsExempt: boolean | undefined;
+  let taxSavings: number | undefined;
+  if (year === 2026) {
+    const oldThreshold = HOUSEHOLD_BUSINESS_EXEMPT_THRESHOLD[2025];
+    oldLawIsExempt = annualRevenue <= oldThreshold;
+    const oldMonthlyTax = oldLawIsExempt
+      ? 0
+      : monthlyRevenue * (HOUSEHOLD_BUSINESS_VAT_RATE + HOUSEHOLD_BUSINESS_PIT_RATE);
+    oldLawAnnualTax = oldMonthlyTax * 12;
+    oldLawAnnualNet = annualRevenue - oldLawAnnualTax;
+    taxSavings = oldLawAnnualTax - monthlyTotalTax * 12;
+  }
+
   return {
     mode: 'freelancerBusiness',
     year,
@@ -590,6 +636,10 @@ export function calculateFreelancerBusiness(
     voluntaryInsurance,
     periodVoluntaryInsurance,
     netAfterVoluntary,
+    oldLawAnnualTax,
+    oldLawAnnualNet,
+    oldLawIsExempt,
+    taxSavings,
   };
 }
 

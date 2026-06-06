@@ -39,10 +39,92 @@ function parseNumberInput(value: string): number {
   return Number(value.replace(/,/g, ''));
 }
 
+interface CurrencyInputProps {
+  id: string;
+  value: number;
+  onChange: (value: number) => void;
+  placeholder?: string;
+  ariaLabel?: string;
+  className?: string;
+}
+
+/**
+ * Standardized currency input with ₫ prefix, comma formatting, and auto-select on focus.
+ */
+function CurrencyInput({ id, value, onChange, placeholder, ariaLabel, className }: CurrencyInputProps) {
+  const [display, setDisplay] = useState<string>(formatNumberInput(value));
+  const [focused, setFocused] = useState(false);
+
+  // Keep display in sync when value changes externally (e.g. clamping)
+  React.useEffect(() => {
+    if (!focused) setDisplay(formatNumberInput(value));
+  }, [value, focused]);
+
+  return (
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">
+        ₫
+      </span>
+      <Input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        value={display}
+        aria-label={ariaLabel}
+        onChange={(e) => {
+          const input = e.target.value;
+          setDisplay(input);
+          const parsed = parseNumberInput(input);
+          onChange(isNaN(parsed) ? 0 : parsed);
+        }}
+        onFocus={(e) => {
+          setFocused(true);
+          e.target.select();
+        }}
+        onBlur={() => {
+          setFocused(false);
+          setDisplay(formatNumberInput(value));
+        }}
+        placeholder={placeholder}
+        className={`pl-6 font-mono text-base ${className ?? ''}`}
+      />
+    </div>
+  );
+}
+
+interface PillGroupProps<T extends string> {
+  label: string;
+  value: T;
+  options: Array<{ v: T; label: string }>;
+  onChange: (v: T) => void;
+  ariaLabel?: string;
+}
+
+function PillGroup<T extends string>({ value, options, onChange, ariaLabel }: PillGroupProps<T>) {
+  return (
+    <div role="radiogroup" aria-label={ariaLabel} className="flex flex-wrap gap-2">
+      {options.map(({ v, label }) => (
+        <button
+          key={v}
+          role="radio"
+          aria-checked={value === v}
+          onClick={() => onChange(v)}
+          className={`text-xs px-3 py-2 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background ${
+            value === v
+              ? 'bg-accent text-accent-foreground'
+              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SalaryCalculator() {
   const { language } = useLanguage();
   const [salary, setSalary] = useState<number>(10_000_000);
-  const [salaryDisplay, setSalaryDisplay] = useState<string>(formatNumberInput(10_000_000));
   const [salaryType, setSalaryType] = useState<'gross' | 'net'>('gross');
   const [region, setRegion] = useState<'I' | 'II' | 'III' | 'IV'>('I');
   const [dependents, setDependents] = useState<number>(0);
@@ -80,7 +162,6 @@ export function SalaryCalculator() {
 
   const handleReset = () => {
     setSalary(10_000_000);
-    setSalaryDisplay(formatNumberInput(10_000_000));
     setSalaryType('gross');
     setRegion('I');
     setDependents(0);
@@ -93,16 +174,16 @@ export function SalaryCalculator() {
     setBhytEnabled(false);
   };
 
-  const handleSalaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value;
-    const parsed = parseNumberInput(input);
-    setSalary(isNaN(parsed) ? 0 : parsed);
-    setSalaryDisplay(input);
+  const handleBhxhBaseChange = (raw: number) => {
+    setBhxhBase(raw);
   };
-
-  const handleSalaryBlur = () => {
-    setSalaryDisplay(formatNumberInput(salary));
-  };
+  // Clamped value used for both calculation and feedback display
+  const bhxhBaseClamped = Math.min(
+    VOLUNTARY_BHXH_MAX_BASE,
+    Math.max(VOLUNTARY_BHXH_MIN_BASE, bhxhBase || VOLUNTARY_BHXH_MIN_BASE)
+  );
+  const bhxhBelowFloor = bhxhEnabled && bhxhBase > 0 && bhxhBase < VOLUNTARY_BHXH_MIN_BASE;
+  const bhxhAboveCap = bhxhEnabled && bhxhBase > VOLUNTARY_BHXH_MAX_BASE;
 
   const isFreelancer = workerType !== 'employee';
   const showNetGrossToggle = workerType !== 'freelancerBusiness';
@@ -124,28 +205,20 @@ export function SalaryCalculator() {
 
         {/* Worker Type Toggle */}
         <div className="mb-6">
-          <Label className="text-sm font-medium block mb-2">{t('workerType', language)}</Label>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                { v: 'employee', k: 'workerTypeEmployee' },
-                { v: 'freelancerContract', k: 'workerTypeFreelancerContract' },
-                { v: 'freelancerBusiness', k: 'workerTypeFreelancerBusiness' },
-              ] as Array<{ v: WorkerType; k: string }>
-            ).map(({ v, k }) => (
-              <button
-                key={v}
-                onClick={() => setWorkerType(v)}
-                className={`text-xs px-3 py-2 rounded transition-colors ${
-                  workerType === v
-                    ? 'bg-accent text-accent-foreground'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
-              >
-                {t(k, language)}
-              </button>
-            ))}
-          </div>
+          <Label id="worker-type-label" className="text-sm font-medium block mb-2">
+            {t('workerType', language)}
+          </Label>
+          <PillGroup<WorkerType>
+            label="worker-type-label"
+            ariaLabel={t('workerType', language)}
+            value={workerType}
+            onChange={setWorkerType}
+            options={[
+              { v: 'employee', label: t('workerTypeEmployee', language) },
+              { v: 'freelancerContract', label: t('workerTypeFreelancerContract', language) },
+              { v: 'freelancerBusiness', label: t('workerTypeFreelancerBusiness', language) },
+            ]}
+          />
           <p className="text-xs text-muted-foreground mt-2">{t('workerTypeHint', language)}</p>
         </div>
 
@@ -153,26 +226,16 @@ export function SalaryCalculator() {
         {workerType === 'freelancerContract' && (
           <div className="mb-6">
             <Label className="text-sm font-medium block mb-2">{t('payerType', language)}</Label>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  { v: 'domestic', k: 'payerTypeDomestic' },
-                  { v: 'foreign', k: 'payerTypeForeign' },
-                ] as Array<{ v: PayerType; k: string }>
-              ).map(({ v, k }) => (
-                <button
-                  key={v}
-                  onClick={() => setPayerType(v)}
-                  className={`text-xs px-3 py-2 rounded transition-colors ${
-                    payerType === v
-                      ? 'bg-accent text-accent-foreground'
-                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                  }`}
-                >
-                  {t(k, language)}
-                </button>
-              ))}
-            </div>
+            <PillGroup<PayerType>
+              label="payer-type"
+              ariaLabel={t('payerType', language)}
+              value={payerType}
+              onChange={setPayerType}
+              options={[
+                { v: 'domestic', label: t('payerTypeDomestic', language) },
+                { v: 'foreign', label: t('payerTypeForeign', language) },
+              ]}
+            />
             <p className="text-xs text-muted-foreground mt-2">{t('payerTypeHint', language)}</p>
           </div>
         )}
@@ -181,27 +244,17 @@ export function SalaryCalculator() {
         {isFreelancer && (
           <div className="mb-6">
             <Label className="text-sm font-medium block mb-2">{t('finalizationPeriod', language)}</Label>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  { v: 'monthly', k: 'periodMonthly' },
-                  { v: 'quarterly', k: 'periodQuarterly' },
-                  { v: 'annually', k: 'periodAnnually' },
-                ] as Array<{ v: FinalizationPeriod; k: string }>
-              ).map(({ v, k }) => (
-                <button
-                  key={v}
-                  onClick={() => setPeriod(v)}
-                  className={`text-xs px-3 py-2 rounded transition-colors ${
-                    period === v
-                      ? 'bg-accent text-accent-foreground'
-                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                  }`}
-                >
-                  {t(k, language)}
-                </button>
-              ))}
-            </div>
+            <PillGroup<FinalizationPeriod>
+              label="period"
+              ariaLabel={t('finalizationPeriod', language)}
+              value={period}
+              onChange={setPeriod}
+              options={[
+                { v: 'monthly', label: t('periodMonthly', language) },
+                { v: 'quarterly', label: t('periodQuarterly', language) },
+                { v: 'annually', label: t('periodAnnually', language) },
+              ]}
+            />
             <p className="text-xs text-muted-foreground mt-2">{t('periodHint', language)}</p>
           </div>
         )}
@@ -212,42 +265,24 @@ export function SalaryCalculator() {
             <Label htmlFor="salary" className="text-sm font-medium">
               {salaryLabel}
             </Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                ₫
-              </span>
-              <Input
-                id="salary"
-                type="text"
-                inputMode="numeric"
-                value={salaryDisplay}
-                onChange={handleSalaryChange}
-                onBlur={handleSalaryBlur}
-                placeholder={t('grossSalaryPlaceholder', language)}
-                className="pl-6 font-mono text-base"
-              />
-            </div>
+            <CurrencyInput
+              id="salary"
+              value={salary}
+              onChange={setSalary}
+              placeholder={t('grossSalaryPlaceholder', language)}
+              ariaLabel={salaryLabel}
+            />
             {showNetGrossToggle && (
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={() => setSalaryType('gross')}
-                  className={`text-xs px-3 py-1 rounded transition-colors ${salaryType === 'gross'
-                      ? 'bg-accent text-accent-foreground'
-                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                    }`}
-                >
-                  {language === 'en' ? 'Gross' : 'Trước thuế'}
-                </button>
-                <button
-                  onClick={() => setSalaryType('net')}
-                  className={`text-xs px-3 py-1 rounded transition-colors ${salaryType === 'net'
-                      ? 'bg-accent text-accent-foreground'
-                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                    }`}
-                >
-                  {language === 'en' ? 'Net' : 'Ròng'}
-                </button>
-              </div>
+              <PillGroup<'gross' | 'net'>
+                label="salary-type"
+                ariaLabel={salaryLabel}
+                value={salaryType}
+                onChange={setSalaryType}
+                options={[
+                  { v: 'gross', label: language === 'en' ? 'Gross' : 'Trước thuế' },
+                  { v: 'net', label: language === 'en' ? 'Net' : 'Ròng' },
+                ]}
+              />
             )}
           </div>
 
@@ -279,13 +314,16 @@ export function SalaryCalculator() {
               </Label>
               <Input
                 id="dependents"
-                type="number"
-                value={dependents}
-                onChange={(e) => setDependents(Math.max(0, Number(e.target.value)))}
+                type="text"
+                inputMode="numeric"
+                value={dependents.toString()}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '');
+                  setDependents(Math.min(10, Math.max(0, Number(v || 0))));
+                }}
+                onFocus={(e) => e.target.select()}
                 placeholder="0"
                 className="font-mono text-base"
-                min="0"
-                max="10"
               />
               <p className="text-xs text-muted-foreground">{t('dependentsHint', language)}</p>
             </div>
@@ -310,69 +348,88 @@ export function SalaryCalculator() {
 
         {/* Voluntary Insurance (freelancer only) */}
         {isFreelancer && (
-          <div className="mt-6 pt-6 border-t border-border">
-            <h3 className="text-sm font-medium mb-2">{t('voluntaryInsuranceTitle', language)}</h3>
-            <p className="text-xs text-muted-foreground mb-3">
+          <div className="mt-6 p-4 border border-border rounded-md bg-secondary/30">
+            <h3 className="text-sm font-semibold mb-1">{t('voluntaryInsuranceTitle', language)}</h3>
+            <p className="text-xs text-muted-foreground mb-4">
               {t('voluntaryInsuranceDescription', language)}
             </p>
 
-            <div className="space-y-3">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={bhxhEnabled}
-                  onChange={(e) => setBhxhEnabled(e.target.checked)}
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <span className="text-sm font-medium">{t('voluntaryBhxhEnabled', language)}</span>
+            <div className="space-y-4">
+              {/* BHXH */}
+              <div className="space-y-2">
+                <label htmlFor="bhxh-enabled" className="flex items-center justify-between gap-3 cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="bhxh-enabled"
+                      type="checkbox"
+                      checked={bhxhEnabled}
+                      onChange={(e) => setBhxhEnabled(e.target.checked)}
+                      className="cursor-pointer"
+                    />
+                    <span className="text-sm font-medium">{t('voluntaryBhxhEnabled', language)}</span>
+                  </div>
                   {bhxhEnabled && (
-                    <div className="mt-2 space-y-1">
-                      <Label htmlFor="bhxhBase" className="text-xs">
-                        {t('voluntaryBhxhBase', language)}
-                      </Label>
-                      <Input
-                        id="bhxhBase"
-                        type="text"
-                        inputMode="numeric"
-                        value={bhxhBase.toLocaleString('en-US')}
-                        onChange={(e) => {
-                          const parsed = Number(e.target.value.replace(/,/g, ''));
-                          if (!isNaN(parsed)) {
-                            setBhxhBase(
-                              Math.min(
-                                VOLUNTARY_BHXH_MAX_BASE,
-                                Math.max(VOLUNTARY_BHXH_MIN_BASE, parsed)
-                              )
-                            );
-                          }
-                        }}
-                        className="font-mono text-sm"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        {t('voluntaryBhxhBaseHint', language)}
-                      </p>
-                    </div>
+                    <span className="text-sm font-mono font-semibold text-accent">
+                      {formatCurrency(bhxhBaseClamped * 0.22, language)}
+                      <span className="text-xs text-muted-foreground ml-1">{t('perMonthLabel', language)}</span>
+                    </span>
                   )}
-                </div>
-              </label>
+                </label>
+                {bhxhEnabled && (
+                  <div className="ml-7 space-y-1">
+                    <Label htmlFor="bhxhBase" className="text-xs">
+                      {t('voluntaryBhxhBase', language)}
+                    </Label>
+                    <CurrencyInput
+                      id="bhxhBase"
+                      value={bhxhBase}
+                      onChange={handleBhxhBaseChange}
+                      ariaLabel={t('voluntaryBhxhBase', language)}
+                      className="text-sm"
+                    />
+                    {bhxhBelowFloor && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        {t('bhxhBaseClampedMin', language)}
+                      </p>
+                    )}
+                    {bhxhAboveCap && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        {t('bhxhBaseClampedMax', language)}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {t('voluntaryBhxhBaseHint', language)}
+                    </p>
+                  </div>
+                )}
+              </div>
 
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={bhytEnabled}
-                  onChange={(e) => setBhytEnabled(e.target.checked)}
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <span className="text-sm font-medium">{t('voluntaryBhytEnabled', language)}</span>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t('voluntaryBhytHint', language)}
-                  </p>
-                </div>
-              </label>
+              {/* BHYT */}
+              <div>
+                <label htmlFor="bhyt-enabled" className="flex items-center justify-between gap-3 cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="bhyt-enabled"
+                      type="checkbox"
+                      checked={bhytEnabled}
+                      onChange={(e) => setBhytEnabled(e.target.checked)}
+                      className="cursor-pointer"
+                    />
+                    <span className="text-sm font-medium">{t('voluntaryBhytEnabled', language)}</span>
+                  </div>
+                  {bhytEnabled && (
+                    <span className="text-sm font-mono font-semibold text-accent">
+                      {formatCurrency(VOLUNTARY_BHYT_MONTHLY, language)}
+                      <span className="text-xs text-muted-foreground ml-1">{t('perMonthLabel', language)}</span>
+                    </span>
+                  )}
+                </label>
+                <p className="ml-7 text-xs text-muted-foreground mt-1">
+                  {t('voluntaryBhytHint', language)}
+                </p>
+              </div>
 
-              <p className="text-xs text-muted-foreground italic">
+              <p className="text-xs text-muted-foreground italic border-t border-border pt-3">
                 {t('bhtnNotAvailable', language)}
               </p>
             </div>
@@ -380,13 +437,14 @@ export function SalaryCalculator() {
         )}
 
         {/* Action Buttons */}
-        <div className="flex gap-3 mt-6 pt-6 border-t border-border">
+        <div className="flex justify-end mt-6 pt-6 border-t border-border">
           <Button
             onClick={handleReset}
-            variant="outline"
-            className="flex-1 font-mono"
+            variant="ghost"
+            size="sm"
+            className="font-mono text-xs"
           >
-            {t('reset', language)}
+            ↻ {t('reset', language)}
           </Button>
         </div>
       </Card>
@@ -426,15 +484,18 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
       {/* Net Salary Highlight */}
       <Card className="p-8 bg-gradient-to-br from-accent/5 to-transparent border-2 border-accent">
         <div className="text-center">
-          <p className="text-sm font-medium text-muted-foreground mb-2">
-            {t('netSalaryTakeHome', language)}
+          <p className="text-sm font-medium text-muted-foreground mb-1">
+            {t('heroTakeHome', language)}
           </p>
           <p className="text-4xl font-mono font-bold text-accent">
             {formatCurrency(result.netSalary, language)}
           </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            {t('monthlyTakeHome', language)}
-          </p>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground font-medium">
+              {t('periodMonthly', language)}
+            </span>
+            <span className="text-xs text-muted-foreground">{t('heroAfterAllTaxes', language)}</span>
+          </div>
         </div>
       </Card>
 
@@ -443,9 +504,10 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
         <button
           onClick={() => toggleSection('breakdown')}
           className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+          aria-expanded={expandedSections.has('breakdown')}
         >
           <h3 className="text-lg font-mono font-bold">{t('salaryBreakdown', language)}</h3>
-          <span className="text-2xl text-muted-foreground">
+          <span className="text-2xl text-muted-foreground" aria-hidden>
             {expandedSections.has('breakdown') ? '−' : '+'}
           </span>
         </button>
@@ -533,14 +595,34 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
         )}
       </Card>
 
+      {/* PIT Bracket detail (Employee) */}
+      {result.pitBreakdown.length > 0 && (
+        <Card className="p-6 border-l-4 border-l-primary">
+          <button
+            onClick={() => toggleSection('brackets')}
+            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+            aria-expanded={expandedSections.has('brackets')}
+          >
+            <h3 className="text-lg font-mono font-bold">{t('pitBracketDetail', language)}</h3>
+            <span className="text-2xl text-muted-foreground" aria-hidden>
+              {expandedSections.has('brackets') ? '−' : '+'}
+            </span>
+          </button>
+          {expandedSections.has('brackets') && (
+            <BracketTable breakdown={result.pitBreakdown} total={result.pit} language={language} />
+          )}
+        </Card>
+      )}
+
       {/* Employer Cost Section */}
       <Card className="p-6 border-l-4 border-l-primary">
         <button
           onClick={() => toggleSection('employer')}
           className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+          aria-expanded={expandedSections.has('employer')}
         >
           <h3 className="text-lg font-mono font-bold">{t('employerCostBreakdown', language)}</h3>
-          <span className="text-2xl text-muted-foreground">
+          <span className="text-2xl text-muted-foreground" aria-hidden>
             {expandedSections.has('employer') ? '−' : '+'}
           </span>
         </button>
@@ -594,9 +676,10 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
           <button
             onClick={() => toggleSection('comparison')}
             className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+            aria-expanded={expandedSections.has('comparison')}
           >
             <h3 className="text-lg font-mono font-bold">{t('taxLawComparison', language)}</h3>
-            <span className="text-2xl text-muted-foreground">
+            <span className="text-2xl text-muted-foreground" aria-hidden>
               {expandedSections.has('comparison') ? '−' : '+'}
             </span>
           </button>
@@ -651,9 +734,10 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
         <button
           onClick={() => toggleSection('minimumWage')}
           className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+          aria-expanded={expandedSections.has('minimumWage')}
         >
           <h3 className="text-lg font-mono font-bold">{t('minimumWageInfo', language)}</h3>
-          <span className="text-2xl text-muted-foreground">
+          <span className="text-2xl text-muted-foreground" aria-hidden>
             {expandedSections.has('minimumWage') ? '−' : '+'}
           </span>
         </button>
@@ -674,7 +758,9 @@ interface FreelancerContractResultsProps {
 }
 
 function FreelancerContractResults({ result, language }: FreelancerContractResultsProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['monthly', 'annual']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(['period', 'voluntary', 'annual', 'comparison', 'brackets'])
+  );
   const toggleSection = (s: string) => {
     const next = new Set(expandedSections);
     if (next.has(s)) next.delete(s); else next.add(s);
@@ -690,125 +776,94 @@ function FreelancerContractResults({ result, language }: FreelancerContractResul
       ? 'periodQuarterly'
       : 'periodAnnually';
   const hasVoluntary = result.voluntaryInsurance.monthlyTotal > 0;
+  const isAnnualView = result.period === 'annually';
+  const heroSubLabel = isForeign
+    ? t('heroSelfDeclared', language)
+    : t('heroAfterAllTaxes', language);
+  const taxSavingsPositive = (result.taxSavings ?? 0) >= 0;
 
   return (
     <div className="space-y-4">
       <Card className="p-8 bg-gradient-to-br from-accent/5 to-transparent border-2 border-accent">
         <div className="text-center">
-          <p className="text-sm font-medium text-muted-foreground mb-2">
-            {t('netThisPeriod', language)} · {t(periodKey, language)}
+          <p className="text-sm font-medium text-muted-foreground mb-1">
+            {t('heroTakeHome', language)}
           </p>
           <p className="text-4xl font-mono font-bold text-accent">
             {formatCurrency(result.netAfterVoluntary, language)}
           </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            {isForeign ? t('foreignPayerNote', language) : t('withholdingNote', language)}
-          </p>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground font-medium">
+              {t(periodKey, language)}
+            </span>
+            <span className="text-xs text-muted-foreground">{heroSubLabel}</span>
+          </div>
         </div>
       </Card>
 
+      {/* Context blurb */}
+      <Card className="p-4 border-l-4 border-l-primary bg-secondary/20">
+        <p className="text-xs text-muted-foreground">
+          {isForeign
+            ? t('freelancerContractDescriptionForeign', language)
+            : t('freelancerContractDescription', language)}
+        </p>
+      </Card>
+
+      {/* Summary card — always shown */}
       <Card className="p-6 border-l-4 border-l-primary">
         <button
-          onClick={() => toggleSection('monthly')}
+          onClick={() => toggleSection('period')}
           className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+          aria-expanded={expandedSections.has('period')}
         >
-          <h3 className="text-lg font-mono font-bold">{t('freelancerContractTitle', language)}</h3>
-          <span className="text-2xl text-muted-foreground">
-            {expandedSections.has('monthly') ? '−' : '+'}
+          <h3 className="text-lg font-mono font-bold">
+            {t('summaryTitle', language)} · {t(periodKey, language)}
+          </h3>
+          <span className="text-2xl text-muted-foreground" aria-hidden>
+            {expandedSections.has('period') ? '−' : '+'}
           </span>
         </button>
-
-        {expandedSections.has('monthly') && (
+        {expandedSections.has('period') && (
           <div className="space-y-3 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground mb-2">
-              {isForeign
-                ? t('freelancerContractDescriptionForeign', language)
-                : t('freelancerContractDescription', language)}
-            </p>
             <ResultRow
-              label={t('monthlyPayment', language)}
-              value={result.monthlyGross}
+              label={t('grossThisPeriod', language)}
+              value={result.periodGross}
               language={language}
             />
             {!isForeign && (
               <ResultRow
-                label={t('monthlyWithholding', language)}
-                value={-result.monthlyWithholding}
+                label={t('withholdingThisPeriod', language)}
+                value={-result.periodWithholding}
+                language={language}
+                isDeduction
+              />
+            )}
+            <ResultRow
+              label={t('pitThisPeriod', language)}
+              value={-result.periodFinalPIT}
+              language={language}
+              isDeduction
+              isBold
+            />
+            {hasVoluntary && (
+              <ResultRow
+                label={t('voluntaryInsuranceThisPeriod', language)}
+                value={-result.periodVoluntaryInsurance}
                 language={language}
                 isDeduction
               />
             )}
             <div className="my-2 border-t border-border" />
             <ResultRow
-              label={t('monthlyNetTakeHome', language)}
-              value={result.monthlyNet}
+              label={t('netThisPeriod', language)}
+              value={result.netAfterVoluntary}
               language={language}
               isBold
             />
-            {isForeign && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {t('selfDeclareWarning', language)}
-              </p>
-            )}
           </div>
         )}
       </Card>
-
-      {/* Per-period card */}
-      {result.period !== 'monthly' && (
-        <Card className="p-6 border-l-4 border-l-primary">
-          <button
-            onClick={() => toggleSection('period')}
-            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
-          >
-            <h3 className="text-lg font-mono font-bold">
-              {t('perPeriod', language)} · {t(periodKey, language)}
-            </h3>
-            <span className="text-2xl text-muted-foreground">
-              {expandedSections.has('period') ? '−' : '+'}
-            </span>
-          </button>
-          {expandedSections.has('period') && (
-            <div className="space-y-3 pt-4 border-t border-border">
-              <ResultRow
-                label={t('grossThisPeriod', language)}
-                value={result.periodGross}
-                language={language}
-              />
-              {!isForeign && (
-                <ResultRow
-                  label={t('withholdingThisPeriod', language)}
-                  value={-result.periodWithholding}
-                  language={language}
-                  isDeduction
-                />
-              )}
-              <ResultRow
-                label={t('pitThisPeriod', language)}
-                value={-result.periodFinalPIT}
-                language={language}
-                isDeduction
-                isBold
-              />
-              {hasVoluntary && (
-                <ResultRow
-                  label={t('voluntaryInsuranceThisPeriod', language)}
-                  value={-result.periodVoluntaryInsurance}
-                  language={language}
-                  isDeduction
-                />
-              )}
-              <div className="my-2 border-t border-border" />
-              <ResultRow
-                label={t('netThisPeriod', language)}
-                value={result.netAfterVoluntary}
-                language={language}
-                isBold
-              />
-            </div>
-          )}
-        </Card>
-      )}
 
       {/* Voluntary insurance card */}
       {hasVoluntary && (
@@ -816,9 +871,10 @@ function FreelancerContractResults({ result, language }: FreelancerContractResul
           <button
             onClick={() => toggleSection('voluntary')}
             className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+            aria-expanded={expandedSections.has('voluntary')}
           >
             <h3 className="text-lg font-mono font-bold">{t('voluntaryInsuranceTitle', language)}</h3>
-            <span className="text-2xl text-muted-foreground">
+            <span className="text-2xl text-muted-foreground" aria-hidden>
               {expandedSections.has('voluntary') ? '−' : '+'}
             </span>
           </button>
@@ -855,87 +911,199 @@ function FreelancerContractResults({ result, language }: FreelancerContractResul
         </Card>
       )}
 
-      <Card className="p-6 border-l-4 border-l-primary">
-        <button
-          onClick={() => toggleSection('annual')}
-          className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
-        >
-          <h3 className="text-lg font-mono font-bold">{t('annualFinalization', language)}</h3>
-          <span className="text-2xl text-muted-foreground">
-            {expandedSections.has('annual') ? '−' : '+'}
-          </span>
-        </button>
+      {/* Annual Tax Finalization — hidden when Summary already shows annual */}
+      {!isAnnualView && (
+        <Card className="p-6 border-l-4 border-l-primary">
+          <button
+            onClick={() => toggleSection('annual')}
+            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+            aria-expanded={expandedSections.has('annual')}
+          >
+            <h3 className="text-lg font-mono font-bold">{t('annualFinalization', language)}</h3>
+            <span className="text-2xl text-muted-foreground" aria-hidden>
+              {expandedSections.has('annual') ? '−' : '+'}
+            </span>
+          </button>
 
-        {expandedSections.has('annual') && (
-          <div className="space-y-3 pt-4 border-t border-border">
-            <ResultRow
-              label={t('annualGross', language)}
-              value={result.annualGross}
-              language={language}
-            />
-            <ResultRow
-              label={t('annualPersonalDeduction', language)}
-              value={-result.personalDeduction}
-              language={language}
-              isDeduction
-            />
-            <ResultRow
-              label={t('annualDependentDeduction', language)}
-              value={-result.dependentDeduction}
-              language={language}
-              isDeduction
-            />
-            <div className="my-2 border-t border-border" />
-            <ResultRow
-              label={t('annualTaxableIncome', language)}
-              value={result.annualTaxableIncome}
-              language={language}
-            />
-            <ResultRow
-              label={isForeign ? t('annualPITOwed', language) : t('annualFinalPIT', language)}
-              value={-result.annualFinalPIT}
-              language={language}
-              isDeduction
-              isBold
-            />
-            {!isForeign && (
-              <>
-                <ResultRow
-                  label={t('annualWithholdingPaid', language)}
-                  value={result.annualWithholdingPaid}
-                  language={language}
-                />
-                <div className="my-2 border-t border-border" />
-                <ResultRow
-                  label={refundPositive ? t('finalizationRefund', language) : t('finalizationOwed', language)}
-                  value={Math.abs(result.finalizationDelta) * (refundPositive ? 1 : -1)}
-                  language={language}
-                  isBold
-                  isDeduction={!refundPositive}
-                />
-              </>
-            )}
-            <div className="my-2 border-t border-border" />
-            <ResultRow
-              label={t('annualNet', language)}
-              value={result.annualNet}
-              language={language}
-              isBold
-            />
-            <ResultRow
-              label={t('monthlyNetEffective', language)}
-              value={result.monthlyNetAfterFinalization}
-              language={language}
-              isBold
-            />
-            <p className="text-xs text-muted-foreground mt-2">
-              {isForeign
-                ? t('freelancerContractFooterForeign', language)
-                : t('freelancerContractFooter', language)}
-            </p>
-          </div>
-        )}
-      </Card>
+          {expandedSections.has('annual') && (
+            <div className="space-y-3 pt-4 border-t border-border">
+              <ResultRow
+                label={t('annualGross', language)}
+                value={result.annualGross}
+                language={language}
+              />
+              <ResultRow
+                label={t('annualPersonalDeduction', language)}
+                value={-result.personalDeduction}
+                language={language}
+                isDeduction
+              />
+              <ResultRow
+                label={t('annualDependentDeduction', language)}
+                value={-result.dependentDeduction}
+                language={language}
+                isDeduction
+              />
+              <div className="my-2 border-t border-border" />
+              <ResultRow
+                label={t('annualTaxableIncome', language)}
+                value={result.annualTaxableIncome}
+                language={language}
+              />
+              <ResultRow
+                label={isForeign ? t('annualPITOwed', language) : t('annualFinalPIT', language)}
+                value={-result.annualFinalPIT}
+                language={language}
+                isDeduction
+                isBold
+              />
+              {!isForeign && (
+                <>
+                  <ResultRow
+                    label={t('annualWithholdingPaid', language)}
+                    value={result.annualWithholdingPaid}
+                    language={language}
+                  />
+                  <div className="my-2 border-t border-border" />
+                  <ResultRow
+                    label={refundPositive ? t('finalizationRefund', language) : t('finalizationOwed', language)}
+                    value={Math.abs(result.finalizationDelta) * (refundPositive ? 1 : -1)}
+                    language={language}
+                    isBold
+                    isDeduction={!refundPositive}
+                  />
+                </>
+              )}
+              <div className="my-2 border-t border-border" />
+              <ResultRow
+                label={t('heroFinalizationNet', language)}
+                value={result.annualNet}
+                language={language}
+                isBold
+              />
+              <ResultRow
+                label={t('monthlyNetEffective', language)}
+                value={result.monthlyNetAfterFinalization}
+                language={language}
+                isBold
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                {isForeign
+                  ? t('freelancerContractFooterForeign', language)
+                  : t('freelancerContractFooter', language)}
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* PIT bracket breakdown */}
+      {result.pitBreakdown.length > 0 && (
+        <Card className="p-6 border-l-4 border-l-primary">
+          <button
+            onClick={() => toggleSection('brackets')}
+            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+            aria-expanded={expandedSections.has('brackets')}
+          >
+            <h3 className="text-lg font-mono font-bold">{t('pitBracketDetail', language)}</h3>
+            <span className="text-2xl text-muted-foreground" aria-hidden>
+              {expandedSections.has('brackets') ? '−' : '+'}
+            </span>
+          </button>
+          {expandedSections.has('brackets') && (
+            <BracketTable breakdown={result.pitBreakdown} total={result.annualFinalPIT} language={language} />
+          )}
+        </Card>
+      )}
+
+      {/* 2025 vs 2026 comparison */}
+      {result.year === 2026 && result.oldLawAnnualPIT !== undefined && (
+        <Card className="p-6 border-l-4 border-l-primary">
+          <button
+            onClick={() => toggleSection('comparison')}
+            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+            aria-expanded={expandedSections.has('comparison')}
+          >
+            <h3 className="text-lg font-mono font-bold">{t('freelancerComparisonTitle', language)}</h3>
+            <span className="text-2xl text-muted-foreground" aria-hidden>
+              {expandedSections.has('comparison') ? '−' : '+'}
+            </span>
+          </button>
+          {expandedSections.has('comparison') && (
+            <div className="space-y-3 pt-4 border-t border-border">
+              <ResultRow
+                label={t('oldLawAnnualTax', language)}
+                value={-(result.oldLawAnnualPIT ?? 0)}
+                language={language}
+                isDeduction
+              />
+              <ResultRow
+                label={t('newLawAnnualTax', language)}
+                value={-result.annualFinalPIT}
+                language={language}
+                isDeduction
+              />
+              <div className="my-2 border-t border-border" />
+              <ResultRow
+                label={taxSavingsPositive ? t('youSaveAnnually', language) : t('youPayMoreAnnually', language)}
+                value={Math.abs(result.taxSavings ?? 0) * (taxSavingsPositive ? 1 : -1)}
+                language={language}
+                isBold
+                isDeduction={!taxSavingsPositive}
+              />
+              <div className="my-2 border-t border-border" />
+              <ResultRow
+                label={t('oldLawAnnualNet', language)}
+                value={result.oldLawAnnualNet ?? 0}
+                language={language}
+              />
+              <ResultRow
+                label={t('newLawAnnualNet', language)}
+                value={result.annualNet}
+                language={language}
+                isBold
+              />
+            </div>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+interface BracketTableProps {
+  breakdown: Array<{ bracket: number; income: number; rate: number; tax: number }>;
+  total: number;
+  language: 'en' | 'vi';
+}
+
+function BracketTable({ breakdown, total, language }: BracketTableProps) {
+  return (
+    <div className="pt-4 border-t border-border overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left border-b border-border">
+            <th className="py-2 pr-4 font-medium text-muted-foreground">{t('bracketCol', language)}</th>
+            <th className="py-2 pr-4 font-medium text-muted-foreground">{t('bracketRate', language)}</th>
+            <th className="py-2 pr-4 font-medium text-muted-foreground text-right">{t('bracketIncome', language)}</th>
+            <th className="py-2 font-medium text-muted-foreground text-right">{t('bracketTax', language)}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {breakdown.map((row) => (
+            <tr key={row.bracket} className="border-b border-border/50">
+              <td className="py-2 pr-4 font-mono">{row.bracket}</td>
+              <td className="py-2 pr-4 font-mono">{row.rate.toFixed(0)}%</td>
+              <td className="py-2 pr-4 font-mono text-right">{formatCurrency(row.income, language)}</td>
+              <td className="py-2 font-mono text-right text-destructive">{formatCurrency(row.tax, language)}</td>
+            </tr>
+          ))}
+          <tr>
+            <td className="py-2 pr-4 font-bold" colSpan={3}>{t('bracketTotal', language)}</td>
+            <td className="py-2 font-mono text-right font-bold text-destructive">{formatCurrency(total, language)}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -946,7 +1114,9 @@ interface FreelancerBusinessResultsProps {
 }
 
 function FreelancerBusinessResults({ result, language }: FreelancerBusinessResultsProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['breakdown', 'period', 'voluntary']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(['breakdown', 'period', 'voluntary', 'comparison'])
+  );
   const toggleSection = (s: string) => {
     const next = new Set(expandedSections);
     if (next.has(s)) next.delete(s); else next.add(s);
@@ -960,20 +1130,26 @@ function FreelancerBusinessResults({ result, language }: FreelancerBusinessResul
       ? 'periodQuarterly'
       : 'periodAnnually';
   const hasVoluntary = result.voluntaryInsurance.monthlyTotal > 0;
+  const taxSavingsPositive = (result.taxSavings ?? 0) >= 0;
 
   return (
     <div className="space-y-4">
       <Card className="p-8 bg-gradient-to-br from-accent/5 to-transparent border-2 border-accent">
         <div className="text-center">
-          <p className="text-sm font-medium text-muted-foreground mb-2">
-            {t('netThisPeriod', language)} · {t(periodKey, language)}
+          <p className="text-sm font-medium text-muted-foreground mb-1">
+            {t('heroTakeHome', language)}
           </p>
           <p className="text-4xl font-mono font-bold text-accent">
             {formatCurrency(result.netAfterVoluntary, language)}
           </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            {result.isExempt ? t('exemptStatus', language) : t('notExemptStatus', language)}
-          </p>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground font-medium">
+              {t(periodKey, language)}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {result.isExempt ? t('exemptStatus', language) : t('notExemptStatus', language)}
+            </span>
+          </div>
         </div>
       </Card>
 
@@ -1086,9 +1262,10 @@ function FreelancerBusinessResults({ result, language }: FreelancerBusinessResul
         <button
           onClick={() => toggleSection('breakdown')}
           className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+          aria-expanded={expandedSections.has('breakdown')}
         >
           <h3 className="text-lg font-mono font-bold">{t('freelancerBusinessTitle', language)}</h3>
-          <span className="text-2xl text-muted-foreground">
+          <span className="text-2xl text-muted-foreground" aria-hidden>
             {expandedSections.has('breakdown') ? '−' : '+'}
           </span>
         </button>
@@ -1099,11 +1276,6 @@ function FreelancerBusinessResults({ result, language }: FreelancerBusinessResul
               {t('freelancerBusinessDescription', language)}
             </p>
 
-            <ResultRow
-              label={t('monthlyRevenue', language)}
-              value={result.monthlyRevenue}
-              language={language}
-            />
             <ResultRow
               label={t('annualRevenue', language)}
               value={result.annualRevenue}
@@ -1118,58 +1290,38 @@ function FreelancerBusinessResults({ result, language }: FreelancerBusinessResul
             <div className="my-2 border-t border-border" />
 
             <ResultRow
-              label={t('vatLabel', language)}
-              value={-result.monthlyVAT}
+              label={t('vatThisPeriod', language)}
+              value={-result.periodVAT}
               language={language}
               isDeduction
             />
             <ResultRow
-              label={t('businessPITLabel', language)}
-              value={-result.monthlyPIT}
+              label={t('businessPITThisPeriod', language)}
+              value={-result.periodPIT}
               language={language}
               isDeduction
             />
             <ResultRow
-              label={t('totalTaxLabel', language)}
-              value={-result.monthlyTotalTax}
+              label={t('totalTaxThisPeriod', language)}
+              value={-result.periodTotalTax}
               language={language}
               isDeduction
               isBold
             />
+            {hasVoluntary && (
+              <ResultRow
+                label={t('voluntaryInsuranceThisPeriod', language)}
+                value={-result.periodVoluntaryInsurance}
+                language={language}
+                isDeduction
+              />
+            )}
 
             <div className="my-2 border-t border-border" />
 
             <ResultRow
-              label={t('annualVATLabel', language)}
-              value={-result.annualVAT}
-              language={language}
-              isDeduction
-            />
-            <ResultRow
-              label={t('annualPITLabel', language)}
-              value={-result.annualPIT}
-              language={language}
-              isDeduction
-            />
-            <ResultRow
-              label={t('annualTotalTax', language)}
-              value={-result.annualTotalTax}
-              language={language}
-              isDeduction
-              isBold
-            />
-
-            <div className="my-2 border-t border-border" />
-
-            <ResultRow
-              label={t('monthlyNetTakeHome', language)}
-              value={result.monthlyNet}
-              language={language}
-              isBold
-            />
-            <ResultRow
-              label={t('annualNet', language)}
-              value={result.annualNet}
+              label={t('netThisPeriod', language)}
+              value={result.netAfterVoluntary}
               language={language}
               isBold
             />
@@ -1180,6 +1332,65 @@ function FreelancerBusinessResults({ result, language }: FreelancerBusinessResul
           </div>
         )}
       </Card>
+
+      {/* 2025 vs 2026 comparison */}
+      {result.year === 2026 && result.oldLawAnnualTax !== undefined && (
+        <Card className="p-6 border-l-4 border-l-primary">
+          <button
+            onClick={() => toggleSection('comparison')}
+            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+            aria-expanded={expandedSections.has('comparison')}
+          >
+            <h3 className="text-lg font-mono font-bold">{t('freelancerComparisonTitle', language)}</h3>
+            <span className="text-2xl text-muted-foreground" aria-hidden>
+              {expandedSections.has('comparison') ? '−' : '+'}
+            </span>
+          </button>
+          {expandedSections.has('comparison') && (
+            <div className="space-y-3 pt-4 border-t border-border">
+              {result.isExempt && result.oldLawIsExempt ? (
+                <p className="text-xs text-muted-foreground">{t('bothExemptNote', language)}</p>
+              ) : result.isExempt && !result.oldLawIsExempt ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {t('oldThresholdNote', language)}
+                </p>
+              ) : null}
+              <ResultRow
+                label={t('oldLawAnnualTax', language)}
+                value={-(result.oldLawAnnualTax ?? 0)}
+                language={language}
+                isDeduction
+              />
+              <ResultRow
+                label={t('newLawAnnualTax', language)}
+                value={-result.annualTotalTax}
+                language={language}
+                isDeduction
+              />
+              <div className="my-2 border-t border-border" />
+              <ResultRow
+                label={taxSavingsPositive ? t('youSaveAnnually', language) : t('youPayMoreAnnually', language)}
+                value={Math.abs(result.taxSavings ?? 0) * (taxSavingsPositive ? 1 : -1)}
+                language={language}
+                isBold
+                isDeduction={!taxSavingsPositive}
+              />
+              <div className="my-2 border-t border-border" />
+              <ResultRow
+                label={t('oldLawAnnualNet', language)}
+                value={result.oldLawAnnualNet ?? 0}
+                language={language}
+              />
+              <ResultRow
+                label={t('newLawAnnualNet', language)}
+                value={result.annualNet}
+                language={language}
+                isBold
+              />
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

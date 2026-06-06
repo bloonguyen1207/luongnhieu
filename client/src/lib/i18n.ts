@@ -165,12 +165,13 @@ export const translations = {
     selfDeclareWarning: 'Since the foreign company does not withhold, you owe the full progressive PIT amount at finalization.',
 
     // Finalization period
-    finalizationPeriod: 'Tax Payment Period',
-    periodMonthly: 'Monthly',
-    periodQuarterly: 'Quarterly',
-    periodAnnually: 'Annually',
-    periodHint: 'Choose the view window — declarations for self-declarants are monthly (by the 20th) or quarterly; annual finalization is required by April 30 of the next year.',
-    perPeriod: 'Per Period',
+    finalizationPeriod: 'Show Amounts Per',
+    periodMonthly: 'Month',
+    periodQuarterly: 'Quarter',
+    periodAnnually: 'Year',
+    periodHint: 'Choose the display window. Real-life filing cadence: self-declarants file monthly (by the 20th) or quarterly; annual finalization is required by April 30.',
+    perPeriod: 'Summary',
+    summaryTitle: 'Summary',
     grossThisPeriod: 'Gross This Period',
     pitThisPeriod: 'PIT This Period',
     withholdingThisPeriod: 'Withholding Paid This Period',
@@ -194,6 +195,49 @@ export const translations = {
     voluntaryBhxhLabel: 'Voluntary BHXH (22%)',
     voluntaryBhytLabel: 'Voluntary BHYT (4.5%)',
     voluntaryInsuranceTotalLabel: 'Voluntary Insurance Total',
+
+    // Hero / labels
+    heroTakeHome: 'Take-Home',
+    heroAfterWithholding: 'After 10% Withholding',
+    heroBeforeFinalization: 'Before Year-End Finalization',
+    heroSelfDeclared: 'Self-Declared (No Withholding)',
+    heroAfterAllTaxes: 'After All Taxes & Fees',
+    heroFinalizationNet: 'True Net (After Finalization)',
+
+    // BHXH base feedback
+    bhxhBaseClampedMin: 'Below minimum — using ₫1,500,000',
+    bhxhBaseClampedMax: 'Above cap — using ₫46,800,000',
+    perMonthLabel: '/mo',
+
+    // Comparison (freelancer)
+    freelancerComparisonTitle: '2025 vs 2026 Comparison',
+    oldLawAnnualNet: '2025 Annual Net',
+    newLawAnnualNet: '2026 Annual Net',
+    youSaveAnnually: 'You Save This Year',
+    youPayMoreAnnually: 'Higher Tax This Year',
+    oldLawAnnualTax: '2025 Annual Tax',
+    newLawAnnualTax: '2026 Annual Tax',
+    oldThresholdNote: 'Under 2025 law the exempt threshold was only ₫100,000,000/year — this revenue would have been taxable.',
+    bothExemptNote: 'This revenue is exempt under both 2025 and 2026 law.',
+
+    // PIT bracket detail
+    pitBracketDetail: 'PIT Bracket Breakdown',
+    bracketCol: 'Bracket',
+    bracketRange: 'Range',
+    bracketRate: 'Rate',
+    bracketIncome: 'Income in Bracket',
+    bracketTax: 'Tax',
+    bracketTotal: 'Total PIT',
+
+    // Legal sources / footer
+    legalSources: 'Legal Sources',
+    lawPit2025: 'Law on Personal Income Tax (Law 109/2025/QH15)',
+    circular111: 'Circular 111/2013/TT-BTC (Article 25 — withholding)',
+    circular40: 'Circular 40/2021/TT-BTC (household business rates)',
+    decree141: 'Decree 141/2026/ND-CP (₫1B exemption threshold)',
+    lawSi2024: 'Law on Social Insurance (Law 41/2024/QH15)',
+    lawEmployment2025: 'Law on Employment 2025 (BHTN scope)',
+    disclaimerUpdated: 'Based on Vietnam labor and tax law current as of June 2026. For binding guidance, consult the General Department of Taxation.',
 
     // Freelancer (Household Business)
     freelancerBusinessTitle: 'Freelancer Tax (Household Business)',
@@ -371,12 +415,13 @@ export const translations = {
     selfDeclareWarning: 'Vì công ty nước ngoài không khấu trừ, bạn phải nộp toàn bộ TNCN lũy tiến khi quyết toán.',
 
     // Finalization period
-    finalizationPeriod: 'Chu Kỳ Nộp Thuế',
-    periodMonthly: 'Hàng Tháng',
-    periodQuarterly: 'Hàng Quý',
-    periodAnnually: 'Hàng Năm',
-    periodHint: 'Chọn chu kỳ hiển thị — người tự kê khai nộp hàng tháng (trước ngày 20) hoặc hàng quý; quyết toán năm bắt buộc trước 30/4 năm sau.',
-    perPeriod: 'Theo Chu Kỳ',
+    finalizationPeriod: 'Hiển Thị Theo',
+    periodMonthly: 'Tháng',
+    periodQuarterly: 'Quý',
+    periodAnnually: 'Năm',
+    periodHint: 'Chọn chu kỳ hiển thị. Thực tế kê khai: người tự kê khai nộp hàng tháng (trước ngày 20) hoặc hàng quý; quyết toán năm bắt buộc trước 30/4.',
+    perPeriod: 'Tóm Tắt',
+    summaryTitle: 'Tóm Tắt',
     grossThisPeriod: 'Thu Nhập Trong Kỳ',
     pitThisPeriod: 'TNCN Trong Kỳ',
     withholdingThisPeriod: 'Khấu Trừ Đã Nộp Trong Kỳ',
@@ -400,6 +445,49 @@ export const translations = {
     voluntaryBhxhLabel: 'BHXH Tự Nguyện (22%)',
     voluntaryBhytLabel: 'BHYT Tự Nguyện (4.5%)',
     voluntaryInsuranceTotalLabel: 'Tổng Bảo Hiểm Tự Nguyện',
+
+    // Hero / labels
+    heroTakeHome: 'Thực Nhận',
+    heroAfterWithholding: 'Sau Khấu Trừ 10%',
+    heroBeforeFinalization: 'Trước Quyết Toán Cuối Năm',
+    heroSelfDeclared: 'Tự Kê Khai (Không Khấu Trừ)',
+    heroAfterAllTaxes: 'Sau Tất Cả Thuế & Phí',
+    heroFinalizationNet: 'Thực Nhận Thực Tế (Sau Quyết Toán)',
+
+    // BHXH base feedback
+    bhxhBaseClampedMin: 'Dưới mức tối thiểu — dùng ₫1.500.000',
+    bhxhBaseClampedMax: 'Trên mức tối đa — dùng ₫46.800.000',
+    perMonthLabel: '/tháng',
+
+    // Comparison (freelancer)
+    freelancerComparisonTitle: 'So Sánh 2025 vs 2026',
+    oldLawAnnualNet: 'Thực Nhận Năm (Luật 2025)',
+    newLawAnnualNet: 'Thực Nhận Năm (Luật 2026)',
+    youSaveAnnually: 'Tiết Kiệm Năm Nay',
+    youPayMoreAnnually: 'Nộp Thêm Năm Nay',
+    oldLawAnnualTax: 'Thuế Năm (Luật 2025)',
+    newLawAnnualTax: 'Thuế Năm (Luật 2026)',
+    oldThresholdNote: 'Theo luật 2025, ngưỡng miễn thuế chỉ là ₫100.000.000/năm — doanh thu này sẽ phải chịu thuế.',
+    bothExemptNote: 'Doanh thu này miễn thuế theo cả luật 2025 lẫn 2026.',
+
+    // PIT bracket detail
+    pitBracketDetail: 'Chi Tiết Từng Bậc Thuế',
+    bracketCol: 'Bậc',
+    bracketRange: 'Khoảng',
+    bracketRate: 'Thuế Suất',
+    bracketIncome: 'Thu Nhập Trong Bậc',
+    bracketTax: 'Tiền Thuế',
+    bracketTotal: 'Tổng TNCN',
+
+    // Legal sources / footer
+    legalSources: 'Cơ Sở Pháp Lý',
+    lawPit2025: 'Luật Thuế TNCN (Luật 109/2025/QH15)',
+    circular111: 'Thông tư 111/2013/TT-BTC (Điều 25 — khấu trừ)',
+    circular40: 'Thông tư 40/2021/TT-BTC (thuế hộ kinh doanh)',
+    decree141: 'Nghị định 141/2026/NĐ-CP (ngưỡng miễn ₫1 tỷ)',
+    lawSi2024: 'Luật BHXH (Luật 41/2024/QH15)',
+    lawEmployment2025: 'Luật Việc làm 2025 (phạm vi BHTN)',
+    disclaimerUpdated: 'Dựa trên luật lao động và thuế Việt Nam hiện hành tính đến tháng 6/2026. Để được hướng dẫn chính thức, vui lòng liên hệ Tổng cục Thuế.',
 
     // Freelancer (Household Business)
     freelancerBusinessTitle: 'Thuế Freelancer (Hộ Kinh Doanh)',
