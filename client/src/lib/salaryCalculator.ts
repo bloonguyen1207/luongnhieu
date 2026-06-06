@@ -58,11 +58,26 @@ export interface SalaryBreakdown {
 }
 
 export type PayerType = 'domestic' | 'foreign';
+export type FinalizationPeriod = 'monthly' | 'quarterly' | 'annually';
+
+export interface VoluntaryInsuranceConfig {
+  bhxhEnabled: boolean;
+  bhxhBase: number; // monthly contribution base (₫1.5M to 20× reference level)
+  bhytEnabled: boolean;
+}
+
+export interface VoluntaryInsuranceCost {
+  monthlyBhxh: number;
+  monthlyBhyt: number;
+  monthlyTotal: number;
+  annualTotal: number;
+}
 
 export interface FreelancerContractBreakdown {
   mode: 'freelancerContract';
   year: 2025 | 2026;
   payerType: PayerType;
+  period: FinalizationPeriod;
 
   // Monthly view (per-payment withholding)
   monthlyGross: number;
@@ -86,11 +101,25 @@ export interface FreelancerContractBreakdown {
   finalizationDelta: number; // positive = refund, negative = owe more
   annualNet: number;
   monthlyNetAfterFinalization: number;
+
+  // Period-scoped numbers (driven by `period`)
+  periodGross: number;
+  periodWithholding: number;
+  periodFinalPIT: number;
+  periodWithholdingPaid: number;
+  periodFinalizationDelta: number;
+  periodNet: number;
+
+  // Voluntary insurance
+  voluntaryInsurance: VoluntaryInsuranceCost;
+  periodVoluntaryInsurance: number;
+  netAfterVoluntary: number; // period net minus voluntary insurance
 }
 
 export interface FreelancerBusinessBreakdown {
   mode: 'freelancerBusiness';
   year: 2025 | 2026;
+  period: FinalizationPeriod;
 
   monthlyRevenue: number;
   annualRevenue: number;
@@ -110,6 +139,18 @@ export interface FreelancerBusinessBreakdown {
 
   monthlyNet: number;
   annualNet: number;
+
+  // Period-scoped numbers
+  periodRevenue: number;
+  periodVAT: number;
+  periodPIT: number;
+  periodTotalTax: number;
+  periodNet: number;
+
+  // Voluntary insurance
+  voluntaryInsurance: VoluntaryInsuranceCost;
+  periodVoluntaryInsurance: number;
+  netAfterVoluntary: number;
 }
 
 // Tax brackets 2026 (New 5-level system)
@@ -170,6 +211,49 @@ const HOUSEHOLD_BUSINESS_PIT_RATE = 0.02;
 const HOUSEHOLD_BUSINESS_EXEMPT_THRESHOLD = {
   2025: 100_000_000,
   2026: 1_000_000_000,
+};
+
+// Voluntary insurance (BHXH tự nguyện + BHYT hộ gia đình)
+// Law on Social Insurance 2024 (41/2024/QH15, effective July 2025) — voluntary BHXH covers
+// retirement, survivorship, maternity, occupational accident (NOT unemployment).
+// Note: BHTN (unemployment) cannot be paid voluntarily under current Vietnam law —
+// it is exclusively for those under labor contracts ≥ 1 month per the Employment Law 2025.
+export const VOLUNTARY_BHXH_RATE = 0.22;
+// Minimum base: rural multidimensional poverty line (₫1.5M/mo, held at this level for 2026)
+export const VOLUNTARY_BHXH_MIN_BASE = 1_500_000;
+// Reference level "mức tham chiếu" / lương cơ sở currently ₫2.34M (raised from ₫1.8M in July 2024)
+export const REFERENCE_LEVEL = 2_340_000;
+export const VOLUNTARY_BHXH_MAX_BASE = REFERENCE_LEVEL * 20; // ₫46.8M cap
+
+// Voluntary BHYT for household: 4.5% × reference level (single member here)
+export const VOLUNTARY_BHYT_RATE = 0.045;
+export const VOLUNTARY_BHYT_MONTHLY = REFERENCE_LEVEL * VOLUNTARY_BHYT_RATE; // ₫105,300
+
+function calculateVoluntaryInsurance(
+  config?: VoluntaryInsuranceConfig
+): VoluntaryInsuranceCost {
+  if (!config) {
+    return { monthlyBhxh: 0, monthlyBhyt: 0, monthlyTotal: 0, annualTotal: 0 };
+  }
+  const clampedBase = Math.min(
+    VOLUNTARY_BHXH_MAX_BASE,
+    Math.max(VOLUNTARY_BHXH_MIN_BASE, config.bhxhBase || VOLUNTARY_BHXH_MIN_BASE)
+  );
+  const monthlyBhxh = config.bhxhEnabled ? clampedBase * VOLUNTARY_BHXH_RATE : 0;
+  const monthlyBhyt = config.bhytEnabled ? VOLUNTARY_BHYT_MONTHLY : 0;
+  const monthlyTotal = monthlyBhxh + monthlyBhyt;
+  return {
+    monthlyBhxh,
+    monthlyBhyt,
+    monthlyTotal,
+    annualTotal: monthlyTotal * 12,
+  };
+}
+
+const PERIOD_MONTHS: Record<FinalizationPeriod, number> = {
+  monthly: 1,
+  quarterly: 3,
+  annually: 12,
 };
 
 /**
@@ -352,7 +436,9 @@ export function calculateFreelancerContract(
   dependents: number,
   year: 2025 | 2026,
   salaryType: 'gross' | 'net' = 'gross',
-  payerType: PayerType = 'domestic'
+  payerType: PayerType = 'domestic',
+  period: FinalizationPeriod = 'monthly',
+  voluntary?: VoluntaryInsuranceConfig
 ): FreelancerContractBreakdown {
   const personalDeduction = PERSONAL_DEDUCTIONS[year];
   const dependentDeduction = DEPENDENT_DEDUCTIONS[year] * Math.max(0, dependents);
@@ -386,10 +472,24 @@ export function calculateFreelancerContract(
   const annualNet = annualGross - annualFinalPIT;
   const monthlyNetAfterFinalization = annualNet / 12;
 
+  // Period-scoped breakdown
+  const months = PERIOD_MONTHS[period];
+  const periodGross = gross * months;
+  const periodWithholding = monthlyWithholding * months;
+  const periodFinalPIT = annualFinalPIT * (months / 12);
+  const periodWithholdingPaid = annualWithholdingPaid * (months / 12);
+  const periodFinalizationDelta = finalizationDelta * (months / 12);
+  const periodNet = periodGross - periodFinalPIT;
+
+  const voluntaryInsurance = calculateVoluntaryInsurance(voluntary);
+  const periodVoluntaryInsurance = voluntaryInsurance.monthlyTotal * months;
+  const netAfterVoluntary = periodNet - periodVoluntaryInsurance;
+
   return {
     mode: 'freelancerContract',
     year,
     payerType,
+    period,
     monthlyGross: gross,
     monthlyWithholding,
     monthlyNet,
@@ -404,6 +504,15 @@ export function calculateFreelancerContract(
     finalizationDelta,
     annualNet,
     monthlyNetAfterFinalization,
+    periodGross,
+    periodWithholding,
+    periodFinalPIT,
+    periodWithholdingPaid,
+    periodFinalizationDelta,
+    periodNet,
+    voluntaryInsurance,
+    periodVoluntaryInsurance,
+    netAfterVoluntary,
   };
 }
 
@@ -432,7 +541,9 @@ function solveFreelancerContractGross(
  */
 export function calculateFreelancerBusiness(
   monthlyRevenue: number,
-  year: 2025 | 2026
+  year: 2025 | 2026,
+  period: FinalizationPeriod = 'monthly',
+  voluntary?: VoluntaryInsuranceConfig
 ): FreelancerBusinessBreakdown {
   const annualRevenue = monthlyRevenue * 12;
   const exemptThreshold = HOUSEHOLD_BUSINESS_EXEMPT_THRESHOLD[year];
@@ -442,9 +553,21 @@ export function calculateFreelancerBusiness(
   const monthlyPIT = isExempt ? 0 : monthlyRevenue * HOUSEHOLD_BUSINESS_PIT_RATE;
   const monthlyTotalTax = monthlyVAT + monthlyPIT;
 
+  const months = PERIOD_MONTHS[period];
+  const periodRevenue = monthlyRevenue * months;
+  const periodVAT = monthlyVAT * months;
+  const periodPIT = monthlyPIT * months;
+  const periodTotalTax = monthlyTotalTax * months;
+  const periodNet = periodRevenue - periodTotalTax;
+
+  const voluntaryInsurance = calculateVoluntaryInsurance(voluntary);
+  const periodVoluntaryInsurance = voluntaryInsurance.monthlyTotal * months;
+  const netAfterVoluntary = periodNet - periodVoluntaryInsurance;
+
   return {
     mode: 'freelancerBusiness',
     year,
+    period,
     monthlyRevenue,
     annualRevenue,
     exemptThreshold,
@@ -459,6 +582,14 @@ export function calculateFreelancerBusiness(
     annualTotalTax: monthlyTotalTax * 12,
     monthlyNet: monthlyRevenue - monthlyTotalTax,
     annualNet: annualRevenue - monthlyTotalTax * 12,
+    periodRevenue,
+    periodVAT,
+    periodPIT,
+    periodTotalTax,
+    periodNet,
+    voluntaryInsurance,
+    periodVoluntaryInsurance,
+    netAfterVoluntary,
   };
 }
 

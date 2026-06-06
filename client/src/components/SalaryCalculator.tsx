@@ -20,6 +20,11 @@ import {
   FreelancerBusinessBreakdown,
   WorkerType,
   PayerType,
+  FinalizationPeriod,
+  VoluntaryInsuranceConfig,
+  VOLUNTARY_BHXH_MIN_BASE,
+  VOLUNTARY_BHXH_MAX_BASE,
+  VOLUNTARY_BHYT_MONTHLY,
 } from '@/lib/salaryCalculator';
 import { t } from '@/lib/i18n';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -44,6 +49,16 @@ export function SalaryCalculator() {
   const [year, setYear] = useState<2025 | 2026>(2026);
   const [workerType, setWorkerType] = useState<WorkerType>('employee');
   const [payerType, setPayerType] = useState<PayerType>('domestic');
+  const [period, setPeriod] = useState<FinalizationPeriod>('monthly');
+  const [bhxhEnabled, setBhxhEnabled] = useState<boolean>(false);
+  const [bhxhBase, setBhxhBase] = useState<number>(VOLUNTARY_BHXH_MIN_BASE);
+  const [bhytEnabled, setBhytEnabled] = useState<boolean>(false);
+
+  const voluntary: VoluntaryInsuranceConfig = {
+    bhxhEnabled,
+    bhxhBase,
+    bhytEnabled,
+  };
 
   const employeeResult = useMemo<SalaryBreakdown>(() => {
     return calculateSalary({
@@ -56,12 +71,12 @@ export function SalaryCalculator() {
   }, [salary, salaryType, region, dependents, year]);
 
   const freelancerContractResult = useMemo<FreelancerContractBreakdown>(() => {
-    return calculateFreelancerContract(salary, dependents, year, salaryType, payerType);
-  }, [salary, salaryType, dependents, year, payerType]);
+    return calculateFreelancerContract(salary, dependents, year, salaryType, payerType, period, voluntary);
+  }, [salary, salaryType, dependents, year, payerType, period, bhxhEnabled, bhxhBase, bhytEnabled]);
 
   const freelancerBusinessResult = useMemo<FreelancerBusinessBreakdown>(() => {
-    return calculateFreelancerBusiness(salary, year);
-  }, [salary, year]);
+    return calculateFreelancerBusiness(salary, year, period, voluntary);
+  }, [salary, year, period, bhxhEnabled, bhxhBase, bhytEnabled]);
 
   const handleReset = () => {
     setSalary(10_000_000);
@@ -72,6 +87,10 @@ export function SalaryCalculator() {
     setYear(2026);
     setWorkerType('employee');
     setPayerType('domestic');
+    setPeriod('monthly');
+    setBhxhEnabled(false);
+    setBhxhBase(VOLUNTARY_BHXH_MIN_BASE);
+    setBhytEnabled(false);
   };
 
   const handleSalaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,6 +174,35 @@ export function SalaryCalculator() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground mt-2">{t('payerTypeHint', language)}</p>
+          </div>
+        )}
+
+        {/* Finalization Period (freelancer only) */}
+        {isFreelancer && (
+          <div className="mb-6">
+            <Label className="text-sm font-medium block mb-2">{t('finalizationPeriod', language)}</Label>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { v: 'monthly', k: 'periodMonthly' },
+                  { v: 'quarterly', k: 'periodQuarterly' },
+                  { v: 'annually', k: 'periodAnnually' },
+                ] as Array<{ v: FinalizationPeriod; k: string }>
+              ).map(({ v, k }) => (
+                <button
+                  key={v}
+                  onClick={() => setPeriod(v)}
+                  className={`text-xs px-3 py-2 rounded transition-colors ${
+                    period === v
+                      ? 'bg-accent text-accent-foreground'
+                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  }`}
+                >
+                  {t(k, language)}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">{t('periodHint', language)}</p>
           </div>
         )}
 
@@ -259,6 +307,77 @@ export function SalaryCalculator() {
             </Select>
           </div>
         </div>
+
+        {/* Voluntary Insurance (freelancer only) */}
+        {isFreelancer && (
+          <div className="mt-6 pt-6 border-t border-border">
+            <h3 className="text-sm font-medium mb-2">{t('voluntaryInsuranceTitle', language)}</h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              {t('voluntaryInsuranceDescription', language)}
+            </p>
+
+            <div className="space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={bhxhEnabled}
+                  onChange={(e) => setBhxhEnabled(e.target.checked)}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-medium">{t('voluntaryBhxhEnabled', language)}</span>
+                  {bhxhEnabled && (
+                    <div className="mt-2 space-y-1">
+                      <Label htmlFor="bhxhBase" className="text-xs">
+                        {t('voluntaryBhxhBase', language)}
+                      </Label>
+                      <Input
+                        id="bhxhBase"
+                        type="text"
+                        inputMode="numeric"
+                        value={bhxhBase.toLocaleString('en-US')}
+                        onChange={(e) => {
+                          const parsed = Number(e.target.value.replace(/,/g, ''));
+                          if (!isNaN(parsed)) {
+                            setBhxhBase(
+                              Math.min(
+                                VOLUNTARY_BHXH_MAX_BASE,
+                                Math.max(VOLUNTARY_BHXH_MIN_BASE, parsed)
+                              )
+                            );
+                          }
+                        }}
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {t('voluntaryBhxhBaseHint', language)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={bhytEnabled}
+                  onChange={(e) => setBhytEnabled(e.target.checked)}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-medium">{t('voluntaryBhytEnabled', language)}</span>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t('voluntaryBhytHint', language)}
+                  </p>
+                </div>
+              </label>
+
+              <p className="text-xs text-muted-foreground italic">
+                {t('bhtnNotAvailable', language)}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex gap-3 mt-6 pt-6 border-t border-border">
@@ -564,16 +683,23 @@ function FreelancerContractResults({ result, language }: FreelancerContractResul
 
   const isForeign = result.payerType === 'foreign';
   const refundPositive = result.finalizationDelta >= 0;
+  const periodKey =
+    result.period === 'monthly'
+      ? 'periodMonthly'
+      : result.period === 'quarterly'
+      ? 'periodQuarterly'
+      : 'periodAnnually';
+  const hasVoluntary = result.voluntaryInsurance.monthlyTotal > 0;
 
   return (
     <div className="space-y-4">
       <Card className="p-8 bg-gradient-to-br from-accent/5 to-transparent border-2 border-accent">
         <div className="text-center">
           <p className="text-sm font-medium text-muted-foreground mb-2">
-            {t('monthlyNetTakeHome', language)}
+            {t('netThisPeriod', language)} · {t(periodKey, language)}
           </p>
           <p className="text-4xl font-mono font-bold text-accent">
-            {formatCurrency(result.monthlyNet, language)}
+            {formatCurrency(result.netAfterVoluntary, language)}
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             {isForeign ? t('foreignPayerNote', language) : t('withholdingNote', language)}
@@ -627,6 +753,107 @@ function FreelancerContractResults({ result, language }: FreelancerContractResul
           </div>
         )}
       </Card>
+
+      {/* Per-period card */}
+      {result.period !== 'monthly' && (
+        <Card className="p-6 border-l-4 border-l-primary">
+          <button
+            onClick={() => toggleSection('period')}
+            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+          >
+            <h3 className="text-lg font-mono font-bold">
+              {t('perPeriod', language)} · {t(periodKey, language)}
+            </h3>
+            <span className="text-2xl text-muted-foreground">
+              {expandedSections.has('period') ? '−' : '+'}
+            </span>
+          </button>
+          {expandedSections.has('period') && (
+            <div className="space-y-3 pt-4 border-t border-border">
+              <ResultRow
+                label={t('grossThisPeriod', language)}
+                value={result.periodGross}
+                language={language}
+              />
+              {!isForeign && (
+                <ResultRow
+                  label={t('withholdingThisPeriod', language)}
+                  value={-result.periodWithholding}
+                  language={language}
+                  isDeduction
+                />
+              )}
+              <ResultRow
+                label={t('pitThisPeriod', language)}
+                value={-result.periodFinalPIT}
+                language={language}
+                isDeduction
+                isBold
+              />
+              {hasVoluntary && (
+                <ResultRow
+                  label={t('voluntaryInsuranceThisPeriod', language)}
+                  value={-result.periodVoluntaryInsurance}
+                  language={language}
+                  isDeduction
+                />
+              )}
+              <div className="my-2 border-t border-border" />
+              <ResultRow
+                label={t('netThisPeriod', language)}
+                value={result.netAfterVoluntary}
+                language={language}
+                isBold
+              />
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Voluntary insurance card */}
+      {hasVoluntary && (
+        <Card className="p-6 border-l-4 border-l-primary">
+          <button
+            onClick={() => toggleSection('voluntary')}
+            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+          >
+            <h3 className="text-lg font-mono font-bold">{t('voluntaryInsuranceTitle', language)}</h3>
+            <span className="text-2xl text-muted-foreground">
+              {expandedSections.has('voluntary') ? '−' : '+'}
+            </span>
+          </button>
+          {expandedSections.has('voluntary') && (
+            <div className="space-y-3 pt-4 border-t border-border">
+              {result.voluntaryInsurance.monthlyBhxh > 0 && (
+                <ResultRow
+                  label={t('voluntaryBhxhLabel', language)}
+                  value={-result.voluntaryInsurance.monthlyBhxh}
+                  language={language}
+                  isDeduction
+                />
+              )}
+              {result.voluntaryInsurance.monthlyBhyt > 0 && (
+                <ResultRow
+                  label={t('voluntaryBhytLabel', language)}
+                  value={-result.voluntaryInsurance.monthlyBhyt}
+                  language={language}
+                  isDeduction
+                />
+              )}
+              <ResultRow
+                label={t('voluntaryInsuranceTotalLabel', language)}
+                value={-result.voluntaryInsurance.monthlyTotal}
+                language={language}
+                isDeduction
+                isBold
+              />
+              <p className="text-xs text-muted-foreground italic mt-2">
+                {t('bhtnNotAvailable', language)}
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card className="p-6 border-l-4 border-l-primary">
         <button
@@ -719,28 +946,141 @@ interface FreelancerBusinessResultsProps {
 }
 
 function FreelancerBusinessResults({ result, language }: FreelancerBusinessResultsProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['breakdown']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['breakdown', 'period', 'voluntary']));
   const toggleSection = (s: string) => {
     const next = new Set(expandedSections);
     if (next.has(s)) next.delete(s); else next.add(s);
     setExpandedSections(next);
   };
 
+  const periodKey =
+    result.period === 'monthly'
+      ? 'periodMonthly'
+      : result.period === 'quarterly'
+      ? 'periodQuarterly'
+      : 'periodAnnually';
+  const hasVoluntary = result.voluntaryInsurance.monthlyTotal > 0;
+
   return (
     <div className="space-y-4">
       <Card className="p-8 bg-gradient-to-br from-accent/5 to-transparent border-2 border-accent">
         <div className="text-center">
           <p className="text-sm font-medium text-muted-foreground mb-2">
-            {t('monthlyNetTakeHome', language)}
+            {t('netThisPeriod', language)} · {t(periodKey, language)}
           </p>
           <p className="text-4xl font-mono font-bold text-accent">
-            {formatCurrency(result.monthlyNet, language)}
+            {formatCurrency(result.netAfterVoluntary, language)}
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             {result.isExempt ? t('exemptStatus', language) : t('notExemptStatus', language)}
           </p>
         </div>
       </Card>
+
+      {/* Per-period card */}
+      {result.period !== 'monthly' && (
+        <Card className="p-6 border-l-4 border-l-primary">
+          <button
+            onClick={() => toggleSection('period')}
+            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+          >
+            <h3 className="text-lg font-mono font-bold">
+              {t('perPeriod', language)} · {t(periodKey, language)}
+            </h3>
+            <span className="text-2xl text-muted-foreground">
+              {expandedSections.has('period') ? '−' : '+'}
+            </span>
+          </button>
+          {expandedSections.has('period') && (
+            <div className="space-y-3 pt-4 border-t border-border">
+              <ResultRow
+                label={t('revenueThisPeriod', language)}
+                value={result.periodRevenue}
+                language={language}
+              />
+              <ResultRow
+                label={t('vatThisPeriod', language)}
+                value={-result.periodVAT}
+                language={language}
+                isDeduction
+              />
+              <ResultRow
+                label={t('businessPITThisPeriod', language)}
+                value={-result.periodPIT}
+                language={language}
+                isDeduction
+              />
+              <ResultRow
+                label={t('totalTaxThisPeriod', language)}
+                value={-result.periodTotalTax}
+                language={language}
+                isDeduction
+                isBold
+              />
+              {hasVoluntary && (
+                <ResultRow
+                  label={t('voluntaryInsuranceThisPeriod', language)}
+                  value={-result.periodVoluntaryInsurance}
+                  language={language}
+                  isDeduction
+                />
+              )}
+              <div className="my-2 border-t border-border" />
+              <ResultRow
+                label={t('netThisPeriod', language)}
+                value={result.netAfterVoluntary}
+                language={language}
+                isBold
+              />
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Voluntary insurance card */}
+      {hasVoluntary && (
+        <Card className="p-6 border-l-4 border-l-primary">
+          <button
+            onClick={() => toggleSection('voluntary')}
+            className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
+          >
+            <h3 className="text-lg font-mono font-bold">{t('voluntaryInsuranceTitle', language)}</h3>
+            <span className="text-2xl text-muted-foreground">
+              {expandedSections.has('voluntary') ? '−' : '+'}
+            </span>
+          </button>
+          {expandedSections.has('voluntary') && (
+            <div className="space-y-3 pt-4 border-t border-border">
+              {result.voluntaryInsurance.monthlyBhxh > 0 && (
+                <ResultRow
+                  label={t('voluntaryBhxhLabel', language)}
+                  value={-result.voluntaryInsurance.monthlyBhxh}
+                  language={language}
+                  isDeduction
+                />
+              )}
+              {result.voluntaryInsurance.monthlyBhyt > 0 && (
+                <ResultRow
+                  label={t('voluntaryBhytLabel', language)}
+                  value={-result.voluntaryInsurance.monthlyBhyt}
+                  language={language}
+                  isDeduction
+                />
+              )}
+              <ResultRow
+                label={t('voluntaryInsuranceTotalLabel', language)}
+                value={-result.voluntaryInsurance.monthlyTotal}
+                language={language}
+                isDeduction
+                isBold
+              />
+              <p className="text-xs text-muted-foreground italic mt-2">
+                {t('bhtnNotAvailable', language)}
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card className="p-6 border-l-4 border-l-primary">
         <button
