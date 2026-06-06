@@ -728,26 +728,6 @@ function SalaryResults({ result, language }: SalaryResultsProps) {
           )}
         </Card>
       )}
-
-      {/* Minimum Wage Info */}
-      <Card className="p-6 border-l-4 border-l-primary">
-        <button
-          onClick={() => toggleSection('minimumWage')}
-          className="w-full flex justify-between items-center mb-4 hover:opacity-75 transition-opacity"
-          aria-expanded={expandedSections.has('minimumWage')}
-        >
-          <h3 className="text-lg font-mono font-bold">{t('minimumWageInfo', language)}</h3>
-          <span className="text-2xl text-muted-foreground" aria-hidden>
-            {expandedSections.has('minimumWage') ? '−' : '+'}
-          </span>
-        </button>
-
-        {expandedSections.has('minimumWage') && (
-          <div className="space-y-4 pt-4 border-t border-border">
-            <MinimumWageTable language={language} year={(result as any).year || 2026} />
-          </div>
-        )}
-      </Card>
     </div>
   );
 }
@@ -1415,44 +1395,3 @@ function ResultRow({ label, value, language, isDeduction, isBold, isPercentage }
   );
 }
 
-interface MinimumWageTableProps {
-  language: 'en' | 'vi';
-  year?: 2025 | 2026;
-}
-
-function MinimumWageTable({ language, year = 2026 }: MinimumWageTableProps) {
-  const minimumWages: Record<string, Record<number, number>> = {
-    I: { 2025: 5_300_000, 2026: 5_680_000 },
-    II: { 2025: 4_640_000, 2026: 4_970_000 },
-    III: { 2025: 4_110_000, 2026: 4_410_000 },
-    IV: { 2025: 3_680_000, 2026: 3_945_000 },
-  };
-
-  return (
-    <div className="space-y-4">
-      {Object.entries(minimumWages).map(([region, wages]) => (
-        <div key={region} className="space-y-2">
-          <h4 className="font-mono font-semibold text-sm">
-            {language === 'en' ? `Region ${region}` : `Vùng ${region}`}
-          </h4>
-          <div className="grid grid-cols-3 gap-4 text-xs">
-            <div>
-              <p className="text-muted-foreground">{t('year2025', language)}</p>
-              <p className="font-mono font-semibold">{formatCurrency(wages[2025] ?? 0, language)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">{t('year2026', language)}</p>
-              <p className="font-mono font-semibold">{formatCurrency(wages[2026] ?? 0, language)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">{t('increase', language)}</p>
-              <p className="font-mono font-semibold text-accent">
-                +{formatCurrency((wages[2026] ?? 0) - (wages[2025] ?? 0), language)}
-              </p>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
