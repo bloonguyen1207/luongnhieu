@@ -1,16 +1,24 @@
-# LuongNhieu — Vietnam Salary Calculator
+# Lương Nhiêu — Vietnam Salary Calculator
 
-A bilingual, themeable, precision salary calculator for Vietnam. Computes net/gross salary, PIT (2025 vs 2026), insurance contributions, and employer costs. Built with React + Vite, Tailwind CSS, and a minimal Express server for production.
+[![Deploy to GitHub Pages](https://github.com/bloonguyen1207/luongnhieu/actions/workflows/deploy.yml/badge.svg)](https://github.com/bloonguyen1207/luongnhieu/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+A bilingual, themeable, precision salary & tax calculator for Vietnam. Computes net/gross salary, PIT (2025 vs 2026), insurance contributions, employer cost, and **freelancer** taxes. Built with React + Vite, Tailwind CSS, and a minimal Express server for production.
+
+**🔗 Live demo: https://bloonguyen1207.github.io/luongnhieu/**
+
+> Free and open source (MIT). Informational only — not binding tax advice.
 
 ## Features
-- Salary calculator with progressive PIT for 2025 (7 brackets) and 2026 (5 brackets)
-- Net ↔ Gross conversion with iterative refinement
-- Employee and employer insurance breakdown (BHXH, BHYT, BHTN)
-- Region selection and dependents deduction
-- Bilingual UI (English/Vietnamese) and dark mode toggle
-- Minimum wage cards (2025 vs 2026) and comparison
-- Client-side routing with `wouter`; production server fallback to `index.html`
-- Optional Google Maps integration via proxy
+- **Employee mode**: progressive PIT for 2025 (7 brackets) and 2026 (5 brackets), employee + employer insurance (BHXH, BHYT, BHTN), region & dependents
+- **Freelancer — Service Contract** (Circular 111/2013/TT-BTC): 10% withholding for domestic payers, self-declaration for foreign payers, annual finalization
+- **Freelancer — Household Business** (Circular 40/2021/TT-BTC + Decree 141/2026/ND-CP): VAT 5% + PIT 2%, ₫1B/year exemption threshold
+- **Voluntary insurance** (BHXH 22% + household BHYT 4.5%) for freelancers
+- **Finalization period** selector — view amounts per Month / Quarter / Year
+- **Net ↔ Gross / Net → invoice** solving via binary search (sub-VND precision)
+- PIT bracket breakdown and 2025-vs-2026 comparison
+- Bilingual UI (English / Vietnamese), light + dark "Jade Money" theme
+- Minimum wage cards (2025 vs 2026)
 
 ## Tech Stack
 - React 19, Vite 7, TypeScript 5
@@ -138,5 +146,22 @@ The `MapView` component loads Google Maps via a proxy service to avoid exposing 
 - Static files are served from `dist/public`; client routing uses a wildcard fallback.
 - `pnpm` patch applied: `wouter@3.7.1` via [patches/wouter@3.7.1.patch](patches/wouter@3.7.1.patch).
 
+## Contributing
+
+Contributions, tax-law corrections, and translations are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup and guidelines.
+
+- 🐛 [Report a bug](https://github.com/bloonguyen1207/luongnhieu/issues/new?template=bug_report.yml)
+- 🧮 [Report a calculation / tax-law error](https://github.com/bloonguyen1207/luongnhieu/issues/new?template=calculation_error.yml) (please cite the legal source)
+- ✨ [Request a feature](https://github.com/bloonguyen1207/luongnhieu/issues/new?template=feature_request.yml)
+
+For any change to tax math, cite the legal basis (law / decree / circular + effective date) and include a worked example.
+
+## Support
+
+If this tool saved you time, you can support its development. _(Donation links
+coming soon — see [.github/FUNDING.yml](.github/FUNDING.yml).)_
+
 ## License
-MIT
+
+[MIT](LICENSE) © Bloo Nguyen

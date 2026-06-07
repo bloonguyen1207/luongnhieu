@@ -1,0 +1,44 @@
+name: "🧮 Calculation / tax-law error"
+description: A number looks wrong, or the tax/insurance logic doesn't match the law
+labels: ["tax-accuracy"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Accuracy is the whole point of this project. Please give us enough to
+        reproduce **and** verify against the law.
+  - type: textarea
+    id: inputs
+    attributes:
+      label: Inputs
+      description: Exactly what you entered.
+      placeholder: |
+        Employment type: Freelancer (Service Contract), Foreign payer
+        Amount: 60,000,000 (Gross), Monthly
+        Dependents: 0
+        Tax year: 2026
+        Voluntary insurance: none
+    validations:
+      required: true
+  - type: input
+    id: shown
+    attributes:
+      label: Value the app showed
+      placeholder: e.g. PIT = ₫172,399,999
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: Value you expected
+      placeholder: e.g. PIT = ₫64,800,000
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Legal source
+      description: The law/decree/circular (and article) that backs the expected value. This is required so we can verify.
+      placeholder: e.g. Circular 111/2013/TT-BTC Art. 25; Law 109/2025/QH15 bracket schedule
+    validations:
+      required: true

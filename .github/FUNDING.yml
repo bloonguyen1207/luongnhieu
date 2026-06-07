@@ -1,0 +1,12 @@
+# Donation / sponsorship config for the GitHub "Sponsor" button.
+# Uncomment a line once the corresponding account exists, then push.
+#
+# NOTE on Vietnam payouts (verified 2026):
+#   - GitHub Sponsors / Stripe Connect: NOT available for VN payouts (manual/fiscal-host only).
+#   - Ko-fi: works via PayPal (PayPal VN can withdraw to local banks). Set `ko_fi: <username>`.
+#   - For VN-native VND, a VietQR/MoMo link is added directly in the app footer instead.
+#
+# github: [bloonguyen1207]          # requires GitHub Sponsors enabled (uncertain for VN)
+# ko_fi: your-ko-fi-username        # recommended for international supporters
+# open_collective: your-collective  # payouts via Wise (supports VND)
+# custom: ["https://your-donation-link"]  # e.g. a VietQR / MoMo page

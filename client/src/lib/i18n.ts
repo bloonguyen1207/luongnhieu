@@ -250,6 +250,17 @@ export const translations = {
     lawEmployment2025: 'Law on Employment 2025 (BHTN scope)',
     disclaimerUpdated: 'Based on Vietnam labor and tax law current as of June 2026. For binding guidance, consult the General Department of Taxation.',
 
+    // Open source / community
+    openSource: 'Open Source',
+    openSourceBlurb: 'Lương Nhiêu is free and open source (MIT). Contributions and corrections welcome.',
+    viewOnGithub: 'View on GitHub',
+    reportIssue: 'Report an issue',
+    contribute: 'Contribute',
+    starRepo: 'Star the repo ★',
+    supportProject: 'Support this project',
+    madeWith: 'Made with',
+    forVietnam: 'for Vietnamese workers & freelancers',
+
     // Freelancer (Household Business)
     freelancerBusinessTitle: 'Freelancer Tax (Household Business)',
     freelancerBusinessDescription: 'You register as an individual business (hộ kinh doanh) providing services. From 2026: lump-sum tax abolished, self-declared. Services taxed at VAT 5% + PIT 2% on revenue (Circular 40/2021/TT-BTC).',
@@ -510,6 +521,17 @@ export const translations = {
     lawSi2024: 'Luật BHXH (Luật 41/2024/QH15)',
     lawEmployment2025: 'Luật Việc làm 2025 (phạm vi BHTN)',
     disclaimerUpdated: 'Dựa trên luật lao động và thuế Việt Nam hiện hành tính đến tháng 6/2026. Để được hướng dẫn chính thức, vui lòng liên hệ Tổng cục Thuế.',
+
+    // Open source / community
+    openSource: 'Mã Nguồn Mở',
+    openSourceBlurb: 'Lương Nhiêu miễn phí và mã nguồn mở (MIT). Hoan nghênh đóng góp và chỉnh sửa.',
+    viewOnGithub: 'Xem trên GitHub',
+    reportIssue: 'Báo lỗi',
+    contribute: 'Đóng góp',
+    starRepo: 'Gắn sao ★',
+    supportProject: 'Ủng hộ dự án',
+    madeWith: 'Được tạo với',
+    forVietnam: 'cho người lao động & freelancer Việt Nam',
 
     // Freelancer (Household Business)
     freelancerBusinessTitle: 'Thuế Freelancer (Hộ Kinh Doanh)',

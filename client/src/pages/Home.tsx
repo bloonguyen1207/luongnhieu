@@ -3,7 +3,9 @@ import { SalaryCalculator } from "@/components/SalaryCalculator";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { t } from "@/lib/i18n";
-import { Moon, Sun, Globe } from "lucide-react";
+import { Moon, Sun, Globe, Github, Heart } from "lucide-react";
+
+const REPO_URL = "https://github.com/bloonguyen1207/luongnhieu";
 import {
   Select,
   SelectContent,
@@ -110,7 +112,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-border bg-secondary/30 mt-16">
         <div className="container py-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
             {/* About */}
             <div>
               <h4 className="font-mono font-bold mb-3">{t("appTitle", language)}</h4>
@@ -119,6 +121,47 @@ export default function Home() {
                   ? "A precision salary calculator for Vietnam, built with transparency and accuracy."
                   : "Máy tính lương chính xác cho Việt Nam, xây dựng với tính minh bạch và độ chính xác."}
               </p>
+            </div>
+
+            {/* Open Source */}
+            <div>
+              <h4 className="font-mono font-bold mb-3">{t("openSource", language)}</h4>
+              <p className="text-sm text-muted-foreground mb-3">
+                {t("openSourceBlurb", language)}
+              </p>
+              <ul className="text-sm space-y-2">
+                <li>
+                  <a
+                    href={REPO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-foreground hover:text-accent transition-colors"
+                  >
+                    <Github className="w-4 h-4" />
+                    {t("viewOnGithub", language)}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={`${REPO_URL}/issues/new/choose`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-accent transition-colors"
+                  >
+                    {t("reportIssue", language)}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={`${REPO_URL}/blob/master/CONTRIBUTING.md`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-accent transition-colors"
+                  >
+                    {t("contribute", language)}
+                  </a>
+                </li>
+              </ul>
             </div>
 
             {/* Tax Info */}
@@ -159,10 +202,35 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Disclaimer */}
-          <div className="border-t border-border pt-6">
+          {/* Disclaimer + open-source line */}
+          <div className="border-t border-border pt-6 space-y-3">
             <p className="text-xs text-muted-foreground text-center">
               {t("disclaimerUpdated", language)}
+            </p>
+            <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1.5 flex-wrap">
+              <span className="inline-flex items-center gap-1">
+                {t("madeWith", language)}
+                <Heart className="w-3 h-3 fill-accent text-accent" />
+                {t("forVietnam", language)}
+              </span>
+              <span className="text-muted-foreground/50">·</span>
+              <a
+                href={`${REPO_URL}/blob/master/LICENSE`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-accent transition-colors"
+              >
+                MIT
+              </a>
+              <span className="text-muted-foreground/50">·</span>
+              <a
+                href={REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-accent transition-colors"
+              >
+                {t("starRepo", language)}
+              </a>
             </p>
           </div>
         </div>
